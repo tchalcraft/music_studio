@@ -1,5 +1,10 @@
 import Config
 
+# Beacon runs in :testing mode during tests so it skips boot-time content population
+# (default components/layouts/pages) — that work isn't needed by the test suite and
+# would slow every run. Merges into the site config from config/config.exs.
+config :beacon, music_studio: [mode: :testing]
+
 # Configure your database
 #
 # The MIX_TEST_PARTITION environment variable can be used

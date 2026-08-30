@@ -66,6 +66,20 @@ config :logger, :default_formatter,
 # Use Jason for JSON parsing in Phoenix
 config :phoenix, :json_library, Jason
 
+# Beacon CMS site. Served at "/" (as a catch-all behind the hand-built home page for
+# now) with the admin at "/cms". Backed by MusicStudio.Repo — which in dev points at
+# Neon via DATABASE_URL — so Beacon's content lives in the same database.
+config :beacon,
+  music_studio: [
+    site: :music_studio,
+    repo: MusicStudio.Repo,
+    endpoint: MusicStudioWeb.Endpoint,
+    router: MusicStudioWeb.Router,
+    # Beacon 0.5.1's Tailwind compiler assumes Tailwind v3; this app is on v4. Use a
+    # lightweight CSS compiler so Beacon boots/serves; full page styling is a follow-up.
+    css_compiler: MusicStudioWeb.BeaconRuntimeCSS
+  ]
+
 # Where new-inquiry notifications are sent. These are non-secret placeholders; the
 # real destination is set per environment — from an env var in prod (runtime.exs) and
 # overridable locally in config/dev.secret.exs.

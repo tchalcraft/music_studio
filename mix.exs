@@ -10,18 +10,8 @@ defmodule MusicStudio.MixProject do
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
       deps: deps(),
-      compilers: [:phoenix_live_view] ++ Mix.compilers(),
-      listeners: listeners()
+      compilers: [:phoenix_live_view] ++ Mix.compilers()
     ]
-  end
-
-  # The Phoenix.CodeReloader compile listener notifies a running dev server to
-  # reload after an out-of-band `mix compile`. It only makes sense in :dev. In
-  # other envs it reloads the already-loaded app modules during compile, emitting
-  # "redefining module" warnings that break `mix precommit` (which runs in :test
-  # with --warnings-as-errors). Scope it to :dev so the gate stays green.
-  defp listeners do
-    if Mix.env() == :dev, do: [Phoenix.CodeReloader], else: []
   end
 
   # Configuration for the OTP application.
@@ -49,7 +39,15 @@ defmodule MusicStudio.MixProject do
   # Type `mix help deps` for examples and options.
   defp deps do
     [
-      {:phoenix, "~> 1.8.13"},
+      # Pinned to 1.7.x so Beacon CMS (0.5.1) works: it calls a private Phoenix API
+      # (`Phoenix.Endpoint.Supervisor.config/2`) that was removed in Phoenix 1.8.
+      # LiveView 1.2 supports Phoenix ~> 1.7, so it stays put.
+      {:phoenix, "~> 1.7.0"},
+      {:beacon, "~> 0.5"},
+      {:beacon_live_admin, "~> 0.4"},
+      # Beacon pulls ex_aws transitively (media library); pin a version that compiles
+      # on Elixir 1.18 (older 2.4.x hits an @partitions/Reference escape error).
+      {:ex_aws, "~> 2.5", override: true},
       {:phoenix_ecto, "~> 4.5"},
       {:ecto_sql, "~> 3.13"},
       {:postgrex, ">= 0.0.0"},
@@ -78,7 +76,9 @@ defmodule MusicStudio.MixProject do
       {:req, "~> 0.5"},
       {:telemetry_metrics, "~> 1.0"},
       {:telemetry_poller, "~> 1.0"},
-      {:gettext, "~> 1.0"},
+      # Beacon requires gettext ~> 0.26 (which already has the Gettext.Backend API
+      # this app uses); can't be ~> 1.0 while Beacon is a dep.
+      {:gettext, "~> 0.26"},
       {:jason, "~> 1.2"},
       {:dns_cluster, "~> 0.2.0"},
       {:bandit, "~> 1.5"},

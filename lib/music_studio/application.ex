@@ -12,6 +12,8 @@ defmodule MusicStudio.Application do
       MusicStudio.Repo,
       {DNSCluster, query: Application.get_env(:music_studio, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: MusicStudio.PubSub},
+      # Beacon CMS — starts before the endpoint so its sites/content are ready to serve.
+      {Beacon, sites: [Application.fetch_env!(:beacon, :music_studio)]},
       # Start a worker by calling: MusicStudio.Worker.start_link(arg)
       # {MusicStudio.Worker, arg},
       # Start to serve requests, typically the last entry
