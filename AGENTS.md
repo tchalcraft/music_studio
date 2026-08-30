@@ -19,13 +19,21 @@ holds only what is always true.
 
 - **Language/runtime:** Elixir 1.18.4 on Erlang/OTP 28, pinned in `.tool-versions`
   and managed by **mise** (mise is authoritative here; run `mix` under mise).
-- **Framework:** Phoenix 1.8, Phoenix LiveView 1.2, Bandit HTTP server.
-- **Database:** PostgreSQL via Ecto (`ecto_sql`, `postgrex`).
-- **CSS:** Tailwind CSS v4 (no `tailwind.config.js`); daisyUI is available but prefer
-  hand-written Tailwind components. Assets bundled by esbuild + `tailwind`.
+- **Framework:** **Phoenix `~> 1.7`** (LiveView 1.2, Bandit). **Do not upgrade Phoenix
+  to 1.8** — Beacon CMS 0.5.1 calls a Phoenix API removed in 1.8. See `../lessons.md`.
+- **CMS:** **Beacon** (`beacon` + `beacon_live_admin`), site `:music_studio`. Admin at
+  `/cms`; `beacon_site "/"` is a catch-all mounted **after** `HomeLive`. Runtime CSS uses
+  a custom `MusicStudioWeb.BeaconRuntimeCSS` (Beacon's Tailwind-v3 compiler is bypassed;
+  the app is on Tailwind v4). Beacon runs `mode: :testing` under test env.
+- **Database:** PostgreSQL via Ecto (`ecto_sql`, `postgrex`). Dev uses **Neon** from
+  `DATABASE_URL` (`.envrc`); falls back to local Postgres. Beacon shares `MusicStudio.Repo`.
+- **CSS:** Tailwind CSS v4 (no `tailwind.config.js`) + daisyUI; a Radix "Modern Minimal"
+  token layer + `ms-` classes lives in `assets/css/app.css`. Assets bundled by esbuild + `tailwind`.
 - **HTTP client:** `Req` — **avoid** `:httpoison`, `:tesla`, and `:httpc`.
-- **Email:** Swoosh. **i18n:** gettext.
+- **Email:** Swoosh. **i18n:** gettext (`~> 0.26`, required by Beacon).
 - **Modules:** app module `MusicStudio`, web module `MusicStudioWeb`.
+- **Domain:** `MusicStudio.Leads` (inquiries) + `Leads.Notifier`; `MusicStudioWeb.HomeLive`
+  (marketing page + inquiry form).
 
 ## Commands
 

@@ -1,10 +1,28 @@
 # MusicStudio
 
-Marketing website for an independent music teacher / studio, built with Phoenix.
+Marketing website for **Tristan**, an independent music teacher — who he is, what he
+teaches (voice, piano, guitar; in-person, all ages), his rates, and an inquiry form —
+with a CMS so content can be edited without a developer.
 
-The toolchain (Elixir 1.18.4 / Erlang OTP 28) is pinned in `.tool-versions` and
-managed by [mise](https://mise.jdx.dev/) — run `mise install` once, then `mix`
-commands use the pinned versions.
+## Stack
+
+- **Elixir 1.18.4 / OTP 28**, pinned in `.tool-versions` and managed by
+  [mise](https://mise.jdx.dev/) (`mise install` once, then `mix` uses the pinned versions).
+- **Phoenix 1.7 + Phoenix LiveView 1.2** on the **Bandit** HTTP server.
+  > Phoenix is held at `~> 1.7` because Beacon CMS 0.5.1 uses a Phoenix API removed in
+  > 1.8. LiveView 1.2 supports 1.7, so it stays. See `../lessons.md` (2026-08-30).
+- **PostgreSQL via Ecto** — **Neon** (hosted) in development, from `DATABASE_URL`.
+- **Beacon CMS** (`beacon` + `beacon_live_admin`) — DB-backed pages/layouts/components;
+  admin at [`/cms`](http://localhost:4000/cms). Mounted as a catch-all behind the
+  hand-built home page (`HomeLive`), which currently owns `/`.
+- **Tailwind CSS v4 + daisyUI**, plus a Radix-inspired "Modern Minimal" token layer
+  (`ms-` classes in `assets/css/app.css`).
+- **Swoosh** for inquiry-notification email; **gettext** for i18n.
+- `MusicStudio.Leads` context captures inquiries (DB + email), independent of the CMS.
+
+Key modules: app `MusicStudio`, web `MusicStudioWeb`; `MusicStudioWeb.HomeLive` (the
+marketing page + inquiry form), `MusicStudio.Leads` / `Leads.Notifier`,
+`MusicStudioWeb.BeaconRuntimeCSS` (Beacon CSS shim).
 
 To start your Phoenix server:
 
