@@ -1,7 +1,9 @@
 [
   verbose: false,
   private: false,
-  skip: false,
+  # Honor inline `# sobelow_skip [...]` annotations (used in BeaconRuntimeCSS, where
+  # temp paths + a fixed Tailwind binary trip low-confidence Traversal/CI flags).
+  skip: true,
   router: "lib/music_studio_web/router.ex",
   exit: "Low",
   format: "txt",
