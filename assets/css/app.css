@@ -103,3 +103,124 @@
 [data-phx-session], [data-phx-teleported-src] { display: contents }
 
 /* This file is for your main application CSS */
+
+/* ==========================================================================
+   Music Studio design system — "Modern Minimal" (Radix-inspired)
+   Portable token layer + semantic classes (prefix `ms-`). Indigo accent,
+   slate gray, small radius, airy spacing. Fonts fall back to the system
+   grotesk stack until self-hosted Inter/Space Grotesk woff2 are added
+   (drop into priv/static/fonts + @font-face here). This whole block ports
+   into a Beacon site stylesheet unchanged once Beacon supports Phoenix 1.8.
+   ========================================================================== */
+:root {
+  --ms-bg: #fcfcfd;
+  --ms-bg-subtle: #f4f4f7;
+  --ms-panel: #ffffff;
+  --ms-border: #e0e1e6;
+  --ms-text: #1c2024;
+  --ms-text-muted: #60646c;
+  --ms-accent: #3e63dd;
+  --ms-accent-hover: #3358d4;
+  --ms-accent-text: #3a5bc7;
+  --ms-on-accent: #ffffff;
+  --ms-radius: 6px;
+  --ms-radius-lg: 12px;
+  --ms-maxw: 64rem;
+  --ms-font-sans: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --ms-font-display: "Space Grotesk", "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+[data-theme="dark"] {
+  --ms-bg: #111113;
+  --ms-bg-subtle: #18191b;
+  --ms-panel: #1c1d20;
+  --ms-border: #2a2b2f;
+  --ms-text: #edeef0;
+  --ms-text-muted: #b0b4ba;
+  --ms-accent: #5472e4;
+  --ms-accent-hover: #6e8bff;
+  --ms-accent-text: #9eb1ff;
+  --ms-on-accent: #ffffff;
+}
+
+.ms-root {
+  background-color: var(--ms-bg);
+  color: var(--ms-text);
+  font-family: var(--ms-font-sans);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100dvh;
+}
+.ms-container {
+  width: 100%;
+  max-width: var(--ms-maxw);
+  margin-inline: auto;
+  padding-inline: 1.5rem;
+}
+.ms-section { padding-block: clamp(3.5rem, 8vw, 6.5rem); }
+.ms-section--tint { background-color: var(--ms-bg-subtle); }
+
+/* Sticky translucent nav */
+.ms-nav {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  backdrop-filter: saturate(180%) blur(12px);
+  background-color: color-mix(in srgb, var(--ms-bg) 80%, transparent);
+  border-bottom: 1px solid var(--ms-border);
+}
+.ms-nav__inner { display: flex; align-items: center; justify-content: space-between; height: 4rem; }
+.ms-nav__brand { font-family: var(--ms-font-display); font-weight: 600; letter-spacing: -0.01em; font-size: 1.05rem; color: var(--ms-text); text-decoration: none; }
+.ms-nav__links { display: none; gap: 1.75rem; align-items: center; }
+@media (min-width: 640px) { .ms-nav__links { display: flex; } }
+.ms-nav__link { color: var(--ms-text-muted); text-decoration: none; font-size: 0.925rem; font-weight: 500; transition: color .15s; }
+.ms-nav__link:hover { color: var(--ms-text); }
+
+/* Typography */
+.ms-eyebrow { font-family: var(--ms-font-display); font-size: 0.8rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ms-accent-text); }
+.ms-h1 { font-family: var(--ms-font-display); font-weight: 600; letter-spacing: -0.025em; line-height: 1.05; font-size: clamp(2.5rem, 6vw, 4rem); color: var(--ms-text); }
+.ms-h2 { font-family: var(--ms-font-display); font-weight: 600; letter-spacing: -0.02em; line-height: 1.15; font-size: clamp(1.75rem, 4vw, 2.5rem); color: var(--ms-text); }
+.ms-h3 { font-family: var(--ms-font-display); font-weight: 600; letter-spacing: -0.01em; font-size: 1.2rem; color: var(--ms-text); }
+.ms-lead { font-size: clamp(1.05rem, 2.2vw, 1.3rem); color: var(--ms-text-muted); line-height: 1.6; }
+.ms-prose { color: var(--ms-text-muted); }
+.ms-prose p + p { margin-top: 1rem; }
+
+/* Buttons */
+.ms-btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; font-weight: 600; font-size: 0.95rem; padding: 0.7rem 1.35rem; border-radius: var(--ms-radius); border: 1px solid transparent; cursor: pointer; text-decoration: none; transition: background-color .15s, border-color .15s, color .15s; }
+.ms-btn--primary { background-color: var(--ms-accent); color: var(--ms-on-accent); }
+.ms-btn--primary:hover { background-color: var(--ms-accent-hover); }
+.ms-btn--ghost { background-color: transparent; color: var(--ms-text); border-color: var(--ms-border); }
+.ms-btn--ghost:hover { background-color: var(--ms-bg-subtle); }
+.ms-btn--block { width: 100%; }
+
+/* Cards + grid */
+.ms-grid { display: grid; gap: 1.25rem; }
+@media (min-width: 640px) { .ms-grid--3 { grid-template-columns: repeat(3, 1fr); } }
+.ms-card { background-color: var(--ms-panel); border: 1px solid var(--ms-border); border-radius: var(--ms-radius-lg); padding: 1.5rem; }
+.ms-card__title { font-family: var(--ms-font-display); font-weight: 600; font-size: 1.15rem; color: var(--ms-text); }
+
+/* Credentials list */
+.ms-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 0.6rem; }
+.ms-list li { display: flex; gap: 0.6rem; color: var(--ms-text-muted); }
+.ms-list li::before { content: "♪"; color: var(--ms-accent-text); font-weight: 700; }
+
+/* Rate table */
+.ms-rates { width: 100%; border-collapse: collapse; }
+.ms-rates th, .ms-rates td { text-align: left; padding: 0.85rem 0.5rem; border-bottom: 1px solid var(--ms-border); }
+.ms-rates th { font-family: var(--ms-font-display); color: var(--ms-text); font-weight: 600; }
+.ms-rates td:last-child, .ms-rates th:last-child { text-align: right; font-variant-numeric: tabular-nums; }
+
+/* Form */
+.ms-field { display: grid; gap: 0.4rem; margin-bottom: 1rem; }
+.ms-label { font-size: 0.9rem; font-weight: 600; color: var(--ms-text); }
+.ms-input, .ms-textarea, .ms-select {
+  width: 100%; font: inherit; color: var(--ms-text); background-color: var(--ms-panel);
+  border: 1px solid var(--ms-border); border-radius: var(--ms-radius); padding: 0.65rem 0.8rem;
+}
+.ms-input:focus, .ms-textarea:focus, .ms-select:focus { outline: 2px solid var(--ms-accent); outline-offset: 1px; border-color: var(--ms-accent); }
+.ms-textarea { min-height: 7rem; resize: vertical; }
+.ms-error { color: #e5484d; font-size: 0.85rem; }
+.ms-note { color: var(--ms-text-muted); font-size: 0.9rem; }
+
+/* Footer */
+.ms-footer { border-top: 1px solid var(--ms-border); color: var(--ms-text-muted); font-size: 0.9rem; }
+.ms-footer a { color: var(--ms-accent-text); text-decoration: none; }
