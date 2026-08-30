@@ -52,13 +52,10 @@ filled-in secrets into each new worktree (a fresh worktree has only tracked file
 
 ### Development database
 
-`config/dev.exs` uses **`DATABASE_URL`** when set (a Neon Postgres URL), otherwise a
-local Postgres. Keep the URL — with its password — in the workspace `.envrc`
-(git-ignored, loaded by direnv); never commit it. Example:
-
-```sh
-export DATABASE_URL="<your-neon-connection-string>"
-```
+`config/dev.exs` uses **`DATABASE_URL`** when set (a Neon Postgres connection string —
+a `postgresql://` URL ending in `?sslmode=require`), otherwise a local Postgres. Keep
+that URL — with its password — in the workspace `.envrc` (git-ignored, loaded by
+direnv); never commit it.
 
 Then `mix ecto.migrate` runs against that database. Tests always use the local DB in
 `config/test.exs`. In a `wt` worktree (which doesn't inherit the parent `.envrc`),
