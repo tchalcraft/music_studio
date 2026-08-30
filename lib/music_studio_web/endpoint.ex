@@ -1,6 +1,12 @@
 defmodule MusicStudioWeb.Endpoint do
   use Phoenix.Endpoint, otp_app: :music_studio
 
+  # Beacon 0.5.1 builds public URLs (e.g. media asset URLs) via
+  # `site_endpoint.proxy_endpoint()`. That hook comes from Beacon's multi-endpoint
+  # "proxy endpoint" setup, which we don't use — this single endpoint serves the site,
+  # so it acts as its own proxy. Beacon only reads `:url`/`:http`/`:https` config off it.
+  def proxy_endpoint, do: __MODULE__
+
   # The session will be stored in the cookie and signed,
   # this means its contents can be read but not tampered with.
   # Set :encryption_salt if you would also like to encrypt it.
