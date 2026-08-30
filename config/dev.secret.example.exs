@@ -13,8 +13,14 @@ import Config
 # Keep real secrets OUT of version control. Production secrets are read from
 # environment variables in `config/runtime.exs`, not from this file.
 #
-# This project has no external service integrations yet — billing, transactional
-# email, and analytics are planned for later phases. Add their keys here when those
-# phases land, for example:
+# Override where lesson-inquiry notifications are sent while developing locally
+# (the default placeholder lives in config/config.exs; prod reads INQUIRY_TO_EMAIL):
+#
+#     config :music_studio, MusicStudio.Leads,
+#       inquiry_to: "you@example.com",
+#       inquiry_from: "no-reply@musicstudio.local"
+#
+# Other external service integrations (billing, transactional email, analytics) are
+# planned for later phases. Add their keys here when those phases land, for example:
 #
 #     config :music_studio, :some_service, api_key: "dev-only-key"

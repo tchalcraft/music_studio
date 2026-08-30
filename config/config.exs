@@ -66,6 +66,13 @@ config :logger, :default_formatter,
 # Use Jason for JSON parsing in Phoenix
 config :phoenix, :json_library, Jason
 
+# Where new-inquiry notifications are sent. These are non-secret placeholders; the
+# real destination is set per environment — from an env var in prod (runtime.exs) and
+# overridable locally in config/dev.secret.exs.
+config :music_studio, MusicStudio.Leads,
+  inquiry_to: "owner@example.com",
+  inquiry_from: "no-reply@musicstudio.local"
+
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.
 import_config "#{config_env()}.exs"

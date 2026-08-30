@@ -50,6 +50,14 @@ if config_env() == :prod do
 
   maybe_ipv6 = if System.get_env("ECTO_IPV6") in ~w(true 1), do: [:inet6], else: []
 
+  # Where new-inquiry notifications go in production. Set INQUIRY_TO_EMAIL (and
+  # optionally INQUIRY_FROM_EMAIL) in the environment; never commit real addresses.
+  if to_addr = System.get_env("INQUIRY_TO_EMAIL") do
+    config :music_studio, MusicStudio.Leads,
+      inquiry_to: to_addr,
+      inquiry_from: System.get_env("INQUIRY_FROM_EMAIL") || "no-reply@musicstudio.local"
+  end
+
   config :music_studio, MusicStudio.Repo,
     # ssl: true,
     url: database_url,
