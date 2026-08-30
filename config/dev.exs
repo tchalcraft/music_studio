@@ -1,14 +1,34 @@
 import Config
 
-# Configure your database
-config :music_studio, MusicStudio.Repo,
-  username: "postgres",
-  password: "postgres",
-  hostname: "localhost",
-  database: "music_studio_dev",
-  stacktrace: true,
-  show_sensitive_data_on_connection_error: true,
-  pool_size: 10
+# Configure your database.
+#
+# In development the database comes from `DATABASE_URL` when it's set — a Neon
+# Postgres URL exported from `.envrc` (direnv), so the password never lives in the
+# repo. Without it, fall back to a local Postgres. Tests always use the local DB
+# configured in `config/test.exs` (they never read `DATABASE_URL`).
+if database_url = System.get_env("DATABASE_URL") do
+  config :music_studio, MusicStudio.Repo,
+    # Drop any libpq query params (e.g. ?sslmode=require&channel_binding=require);
+    # SSL is configured explicitly below and channel binding is negotiated by Postgrex.
+    url: database_url |> String.split("?") |> hd(),
+    ssl: [verify: :verify_none],
+    # Neon's pooled endpoint runs PgBouncer in transaction mode, which is incompatible
+    # with named prepared statements — use unnamed ones to avoid "prepared statement
+    # already exists" errors.
+    prepare: :unnamed,
+    stacktrace: true,
+    show_sensitive_data_on_connection_error: true,
+    pool_size: String.to_integer(System.get_env("POOL_SIZE") || "10")
+else
+  config :music_studio, MusicStudio.Repo,
+    username: "postgres",
+    password: "postgres",
+    hostname: "localhost",
+    database: "music_studio_dev",
+    stacktrace: true,
+    show_sensitive_data_on_connection_error: true,
+    pool_size: 10
+end
 
 # For development, we disable any cache and enable
 # debugging and code reloading.

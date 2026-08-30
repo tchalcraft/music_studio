@@ -32,6 +32,20 @@ secrets are read from environment variables in `config/runtime.exs`, never commi
 `.worktreeinclude` lists `config/dev.secret.exs` so worktree tooling copies your
 filled-in secrets into each new worktree (a fresh worktree has only tracked files).
 
+### Development database
+
+`config/dev.exs` uses **`DATABASE_URL`** when set (a Neon Postgres URL), otherwise a
+local Postgres. Keep the URL — with its password — in the workspace `.envrc`
+(git-ignored, loaded by direnv); never commit it. Example:
+
+```sh
+export DATABASE_URL="<your-neon-connection-string>"
+```
+
+Then `mix ecto.migrate` runs against that database. Tests always use the local DB in
+`config/test.exs`. In a `wt` worktree (which doesn't inherit the parent `.envrc`),
+export `DATABASE_URL` yourself or add `.envrc` to `.worktreeinclude`.
+
 ## AI coding agents
 
 Framework guidance is split into skills under `.claude/skills/` (mirrored to
