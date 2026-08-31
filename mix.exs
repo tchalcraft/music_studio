@@ -80,6 +80,9 @@ defmodule MusicStudio.MixProject do
       # this app uses); can't be ~> 1.0 while Beacon is a dep.
       {:gettext, "~> 0.26"},
       {:jason, "~> 1.2"},
+      # Time-sortable UUIDs (UUIDv7) for new domain tables — Ecto.Type used as the
+      # primary key; merge/CDC-friendly for the eventual lakehouse. See MusicStudio.Schema.
+      {:uuidv7, "~> 1.0"},
       {:dns_cluster, "~> 0.2.0"},
       {:bandit, "~> 1.5"},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
