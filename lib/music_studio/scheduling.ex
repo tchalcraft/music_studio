@@ -87,61 +87,67 @@ defmodule MusicStudio.Scheduling do
   @spec cancel_booking(String.t()) :: {:ok, Lesson.t()} | {:error, term()}
   def cancel_booking(token) do
     case get_lesson_by_token(token) do
-      nil ->
-        {:error, :not_found}
-
-      lesson ->
-        {:ok, lesson} =
-          lesson
-          |> Lesson.changeset(%{status: :cancelled, deleted_at: DateTime.utc_now()})
-          |> Repo.update()
-
-        if lesson.google_event_id do
-          side_effect(fn ->
-            GoogleCalendar.delete_event(target_calendar(), lesson.google_event_id)
-          end)
-        end
-
-        {:ok, lesson}
+      nil -> {:error, :not_found}
+      lesson -> do_cancel(lesson)
     end
+  end
+
+  defp do_cancel(lesson) do
+    {:ok, cancelled} =
+      lesson
+      |> Lesson.changeset(%{status: :cancelled, deleted_at: DateTime.utc_now()})
+      |> Repo.update()
+
+    delete_event(cancelled)
+    {:ok, cancelled}
   end
 
   @spec reschedule_booking(String.t(), DateTime.t()) :: {:ok, Lesson.t()} | {:error, term()}
   def reschedule_booking(token, new_starts_at) do
     case get_lesson_by_token(token) do
-      nil ->
-        {:error, :not_found}
-
-      lesson ->
-        new_end = DateTime.add(new_starts_at, lesson.duration_minutes, :minute)
-
-        changeset =
-          Lesson.changeset(lesson, %{
-            scheduled_start: DateTime.truncate(new_starts_at, :second),
-            scheduled_end: DateTime.truncate(new_end, :second)
-          })
-
-        case Repo.update(changeset) do
-          {:ok, lesson} ->
-            if lesson.google_event_id do
-              side_effect(fn ->
-                GoogleCalendar.update_event(target_calendar(), lesson.google_event_id, %{
-                  summary: "Lesson",
-                  description: "Rescheduled",
-                  location: "Studio",
-                  starts_at: new_starts_at,
-                  ends_at: new_end,
-                  timezone: cfg(:studio_timezone)
-                })
-              end)
-            end
-
-            {:ok, lesson}
-
-          {:error, %Ecto.Changeset{errors: errors}} ->
-            booking_error(errors)
-        end
+      nil -> {:error, :not_found}
+      lesson -> do_reschedule(lesson, new_starts_at)
     end
+  end
+
+  defp do_reschedule(lesson, new_starts_at) do
+    new_end = DateTime.add(new_starts_at, lesson.duration_minutes, :minute)
+
+    changeset =
+      Lesson.changeset(lesson, %{
+        scheduled_start: DateTime.truncate(new_starts_at, :second),
+        scheduled_end: DateTime.truncate(new_end, :second)
+      })
+
+    case Repo.update(changeset) do
+      {:ok, updated} ->
+        update_event(updated, new_starts_at, new_end)
+        {:ok, updated}
+
+      {:error, %Ecto.Changeset{errors: errors}} ->
+        booking_error(errors)
+    end
+  end
+
+  defp delete_event(%{google_event_id: nil}), do: :ok
+
+  defp delete_event(lesson) do
+    side_effect(fn -> GoogleCalendar.delete_event(target_calendar(), lesson.google_event_id) end)
+  end
+
+  defp update_event(%{google_event_id: nil}, _new_starts_at, _new_end), do: :ok
+
+  defp update_event(lesson, new_starts_at, new_end) do
+    side_effect(fn ->
+      GoogleCalendar.update_event(target_calendar(), lesson.google_event_id, %{
+        summary: "Lesson",
+        description: "Rescheduled",
+        location: "Studio",
+        starts_at: new_starts_at,
+        ends_at: new_end,
+        timezone: cfg(:studio_timezone)
+      })
+    end)
   end
 
   @spec get_lesson_by_token(String.t()) :: Lesson.t() | nil

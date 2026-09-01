@@ -2,9 +2,9 @@ defmodule MusicStudio.SchedulingTest do
   use MusicStudio.DataCase, async: false
   import Swoosh.TestAssertions
 
+  alias MusicStudio.{Catalog, Teaching}
   alias MusicStudio.Scheduling
   alias MusicStudio.Scheduling.{Credentials, GoogleAuth}
-  alias MusicStudio.{Catalog, Teaching}
 
   setup do
     Application.put_env(:music_studio, :scheduling_req_options, plug: {Req.Test, GoogleAuth})
