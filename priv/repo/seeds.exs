@@ -47,9 +47,9 @@ end
 
 # Offerings — the rate card (CAD)
 for {name, minutes, cents} <- [
-      {"60-minute lesson", 60, 6000},
-      {"45-minute lesson", 45, 4500},
-      {"30-minute lesson", 30, 3000}
+      {"60-minute lesson", 60, 7000},
+      {"45-minute lesson", 45, 5000},
+      {"30-minute lesson", 30, 3500}
     ] do
   upsert.(Offering, [name: name], fn ->
     Catalog.create_offering(%{

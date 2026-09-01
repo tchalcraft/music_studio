@@ -91,8 +91,8 @@ defmodule MusicStudioWeb.HomeLive do
               Music lessons for every age and stage.
             </h1>
             <p class="ms-lead" style="margin-top:1.5rem;max-width:42ch">
-              Classically trained voice, piano, and guitar instruction in a welcoming
-              local studio — for beginners and returning musicians alike.
+              Voice, piano, and guitar lessons from a professional opera singer — in a
+              welcoming local studio, for beginners and returning musicians alike.
             </p>
             <div style="margin-top:2rem;display:flex;gap:0.75rem;flex-wrap:wrap">
               <a class="ms-btn ms-btn--primary" href="#contact">Inquire about lessons</a>
@@ -119,11 +119,11 @@ defmodule MusicStudioWeb.HomeLive do
                   of White Rock Award for Musical Excellence.
                 </p>
                 <p>
-                  An accomplished pianist, organist, and guitarist as well as a singer, he
-                  has performed with acclaimed ensembles including the Vancouver Chamber
-                  Choir, Vancouver Opera Chorus, Laudate Singers, and Vox Humana, and has
-                  appeared as a soloist with the University of Victoria Orchestra, Vancouver
-                  Chamber Choir, and Vancouver Bach Choir.
+                  A professional opera singer, Tristan has performed with acclaimed
+                  ensembles including the Vancouver Opera Chorus, Vancouver Chamber Choir,
+                  Laudate Singers, and Vox Humana, and has appeared as a soloist with the
+                  University of Victoria Orchestra, Vancouver Chamber Choir, and Vancouver
+                  Bach Choir. He is also an accomplished pianist, organist, and guitarist.
                 </p>
                 <p>
                   Years of experience as both performer and educator let him bring a
@@ -170,8 +170,8 @@ defmodule MusicStudioWeb.HomeLive do
               <div class="ms-card">
                 <div class="ms-card__title">Guitar</div>
                 <p class="ms-prose" style="margin-top:0.5rem">
-                  Chords, technique, and songs for acoustic or classical guitar, for
-                  players just starting out or picking it back up.
+                  Chords, technique, and songs on acoustic or electric guitar — for
+                  beginner to intermediate players just starting out or picking it back up.
                 </p>
               </div>
             </div>
@@ -186,13 +186,13 @@ defmodule MusicStudioWeb.HomeLive do
                 </thead>
                 <tbody>
                   <tr>
-                    <td>60 minutes</td><td>$60</td>
+                    <td>60 minutes</td><td>$70</td>
                   </tr>
                   <tr>
-                    <td>45 minutes</td><td>$45</td>
+                    <td>45 minutes</td><td>$50</td>
                   </tr>
                   <tr>
-                    <td>30 minutes</td><td>$30</td>
+                    <td>30 minutes</td><td>$35</td>
                   </tr>
                 </tbody>
               </table>

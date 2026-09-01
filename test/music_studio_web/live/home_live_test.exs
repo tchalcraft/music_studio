@@ -10,7 +10,7 @@ defmodule MusicStudioWeb.HomeLiveTest do
 
     assert html =~ "Music lessons for every age and stage."
     assert html =~ "Lessons &amp; Rates"
-    assert html =~ "$60"
+    assert html =~ "$70"
     assert html =~ "Payment by cash or e-transfer."
   end
 
