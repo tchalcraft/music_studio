@@ -25,6 +25,8 @@ defmodule MusicStudio.Teaching.Lesson do
     field :currency, :string, default: "CAD"
     field :notes, :string
     field :deleted_at, :utc_datetime_usec
+    field :google_event_id, :string
+    field :booking_token, :string
 
     belongs_to :enrollment, Enrollment
     belongs_to :student, Student
@@ -51,6 +53,8 @@ defmodule MusicStudio.Teaching.Lesson do
       :currency,
       :notes,
       :deleted_at,
+      :google_event_id,
+      :booking_token,
       :enrollment_id,
       :student_id,
       :teacher_id,
@@ -67,5 +71,10 @@ defmodule MusicStudio.Teaching.Lesson do
     |> assoc_constraint(:instrument)
     |> assoc_constraint(:offering)
     |> assoc_constraint(:location)
+    |> unique_constraint(:booking_token)
+    |> exclusion_constraint(:scheduled_start,
+      name: "lessons_no_overlap",
+      message: "is already booked"
+    )
   end
 end
