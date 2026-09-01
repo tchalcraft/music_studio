@@ -61,6 +61,27 @@ Then `mix ecto.migrate` runs against that database. Tests always use the local D
 `config/test.exs`. In a `wt` worktree (which doesn't inherit the parent `.envrc`),
 export `DATABASE_URL` yourself or add `.envrc` to `.worktreeinclude`.
 
+## Online booking
+
+Visitors book lessons at **`/book`**: pick an instrument + duration, choose an open
+time, and the slot is booked instantly. Availability comes from a dedicated Google
+"Availability" calendar (open blocks minus already-booked lessons, on a 30-min grid,
+respecting a buffer and a 24 h minimum notice, in `America/Vancouver`). A booking
+creates a `Lesson` (as a prospective `Student`), writes a Google Calendar event, and
+sends a Resend confirmation with a `.ics` attachment plus a notification to the teacher.
+Visitors cancel via `/book/manage/:token`. Lessons carry a price so they can be invoiced
+monthly (Stripe) later — no payment at booking. A Postgres exclusion constraint makes
+double-booking impossible.
+
+**Required env** (prod via `config/runtime.exs`; local via `config/dev.secret.exs`):
+`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`, `GOOGLE_SETUP_TOKEN`,
+`RESEND_API_KEY`. Tunables live under `config :music_studio, MusicStudio.Scheduling`
+(timezone, `slot_grid_minutes`, `buffer_minutes`, `min_notice_minutes`).
+
+**One-time Google connect:** visit `/admin/google/connect?token=$GOOGLE_SETUP_TOKEN`,
+grant Calendar access, then set the availability + target calendar ids on the stored
+`scheduling_credentials` row. The refresh token is captured and stored in the DB.
+
 ## AI coding agents
 
 Framework guidance is split into skills under `.claude/skills/` (mirrored to
