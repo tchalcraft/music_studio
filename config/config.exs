@@ -96,6 +96,25 @@ config :music_studio, :stripe,
   webhook_secret: nil,
   api_base_url: "https://api.stripe.com"
 
+# Use the tzdata time zone database for DateTime math (Pacific slots, DST).
+config :elixir, :time_zone_database, Tzdata.TimeZoneDatabase
+
+# Scheduling / online booking defaults. Secrets (Google, Resend) are injected in
+# config/runtime.exs (prod) or config/dev.secret.exs (local); never commit them.
+config :music_studio, MusicStudio.Scheduling,
+  studio_timezone: "America/Vancouver",
+  slot_grid_minutes: 30,
+  buffer_minutes: 15,
+  min_notice_minutes: 24 * 60,
+  google_auth_url: "https://accounts.google.com/o/oauth2/v2/auth",
+  google_token_url: "https://oauth2.googleapis.com/token",
+  google_client_id: nil,
+  google_client_secret: nil,
+  google_redirect_uri: nil,
+  setup_token: nil,
+  notify_from: "no-reply@musicstudio.local",
+  notify_to: "owner@example.com"
+
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.
 import_config "#{config_env()}.exs"

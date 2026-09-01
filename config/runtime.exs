@@ -72,6 +72,24 @@ if config_env() == :prod do
     publishable_key: System.get_env("STRIPE_PUBLISHABLE_KEY"),
     webhook_secret: System.get_env("STRIPE_WEBHOOK_SECRET")
 
+  # Resend transactional email (booking confirmations). RESEND_API_KEY from the env.
+  if resend_key = System.get_env("RESEND_API_KEY") do
+    config :music_studio, MusicStudio.Mailer,
+      adapter: Swoosh.Adapters.Resend,
+      api_key: resend_key
+  end
+
+  # Google Calendar OAuth (booking availability + event writes). The refresh token is
+  # obtained via the one-time connect flow and stored in the DB, not here. Deep-merges
+  # with the compile-time Scheduling defaults (timezone, grid, buffer, etc.).
+  config :music_studio, MusicStudio.Scheduling,
+    google_client_id: System.get_env("GOOGLE_CLIENT_ID"),
+    google_client_secret: System.get_env("GOOGLE_CLIENT_SECRET"),
+    google_redirect_uri: System.get_env("GOOGLE_REDIRECT_URI"),
+    setup_token: System.get_env("GOOGLE_SETUP_TOKEN"),
+    notify_from: System.get_env("BOOKING_FROM_EMAIL") || "no-reply@musicstudio.local",
+    notify_to: System.get_env("INQUIRY_TO_EMAIL") || "owner@example.com"
+
   config :music_studio, MusicStudio.Repo,
     # ssl: true,
     url: database_url,

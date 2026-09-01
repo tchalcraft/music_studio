@@ -80,6 +80,8 @@ defmodule MusicStudio.MixProject do
       # this app uses); can't be ~> 1.0 while Beacon is a dep.
       {:gettext, "~> 0.26"},
       {:jason, "~> 1.2"},
+      # Time zone database for America/Vancouver slot math (Elixir ships UTC-only).
+      {:tzdata, "~> 1.1"},
       # Time-sortable UUIDs (UUIDv7) for new domain tables — Ecto.Type used as the
       # primary key; merge/CDC-friendly for the eventual lakehouse. See MusicStudio.Schema.
       {:uuidv7, "~> 1.0"},
