@@ -30,6 +30,17 @@ defmodule MusicStudio.Teaching do
   def list_students, do: Repo.all(active_scope(Student))
   def get_student!(id), do: Repo.get!(Student, id)
 
+  @doc "Finds a non-deleted student by email (case-insensitive), or nil."
+  def get_student_by_email(nil), do: nil
+
+  def get_student_by_email(email) do
+    Repo.one(
+      from s in Student,
+        where: fragment("lower(?)", s.email) == ^String.downcase(email) and is_nil(s.deleted_at),
+        limit: 1
+    )
+  end
+
   def change_student(%Student{} = s \\ %Student{}, attrs \\ %{}),
     do: Student.changeset(s, attrs)
 
