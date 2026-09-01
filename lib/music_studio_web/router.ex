@@ -31,6 +31,12 @@ defmodule MusicStudioWeb.Router do
     pipe_through :browser
 
     live "/", HomeLive
+    live "/book", BookingLive
+    live "/book/manage/:token", BookingManageLive
+
+    # One-time Google Calendar connect flow (guarded by a setup token).
+    get "/admin/google/connect", GoogleOAuthController, :connect
+    get "/oauth/google/callback", GoogleOAuthController, :callback
   end
 
   # Other scopes may use custom stacks.
