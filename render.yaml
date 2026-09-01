@@ -1,0 +1,47 @@
+# Render Blueprint for the music_studio Phoenix/Beacon app.
+# https://render.com/docs/blueprint-spec
+#
+# Free-tier deployment (the constraint): a single Docker web service on `plan: free`,
+# backed by the external Neon Postgres (free) via DATABASE_URL — we do NOT use Render's
+# own Postgres. Free web services SLEEP after ~15 min idle (slow first request); accepted
+# for now. Migrations run on container boot (see Dockerfile CMD), so no pre-deploy hook.
+#
+# Secrets (sync: false) are NOT stored here — set them in the Render dashboard/API:
+#   DATABASE_URL      Neon pooled connection string (postgresql://…-pooler…neon.tech/…) — prod branch
+#   SECRET_KEY_BASE   `mix phx.gen.secret`
+#   PHX_HOST          the onrender.com hostname at first; swap to tristanchalcraftmusic.com when live
+#   INQUIRY_TO_EMAIL / INQUIRY_FROM_EMAIL   where new-inquiry notifications go (From must be Resend-verified)
+#   RESEND_API_KEY    Resend API key — sends inquiry emails (leads still persist if unset)
+#   STRIPE_SECRET_KEY required at boot (runtime.exs raises without it); a test key is fine (no payment flow yet)
+#   STRIPE_PUBLISHABLE_KEY / STRIPE_WEBHOOK_SECRET   optional now; webhook secret only once checkout exists
+services:
+  - type: web
+    name: music-studio
+    runtime: docker
+    plan: free                 # hard free-tier guardrail
+    region: oregon
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /
+    envVars:
+      - key: PHX_SERVER
+        value: "true"
+      - key: POOL_SIZE
+        value: "5"             # small: Neon free connection limits + 512 MB RAM
+      - key: DATABASE_URL
+        sync: false
+      - key: SECRET_KEY_BASE
+        sync: false
+      - key: PHX_HOST
+        sync: false
+      - key: INQUIRY_TO_EMAIL
+        sync: false
+      - key: INQUIRY_FROM_EMAIL
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_PUBLISHABLE_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false

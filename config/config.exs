@@ -77,7 +77,11 @@ config :beacon,
     router: MusicStudioWeb.Router,
     # Beacon 0.5.1's Tailwind compiler assumes Tailwind v3; this app is on v4. Use a
     # lightweight CSS compiler so Beacon boots/serves; full page styling is a follow-up.
-    css_compiler: MusicStudioWeb.BeaconRuntimeCSS
+    css_compiler: MusicStudioWeb.BeaconRuntimeCSS,
+    # Don't warm (compile) CMS pages at boot. On the free-tier host (0.5 vCPU) eager
+    # warming blows Beacon's 15s per-page load_page_module timeout and crashes boot;
+    # :none makes pages compile lazily on first request instead (negligible in dev).
+    page_warming: :none
   ]
 
 # Where new-inquiry notifications are sent. These are non-secret placeholders; the
