@@ -87,6 +87,15 @@ config :music_studio, MusicStudio.Leads,
   inquiry_to: "owner@example.com",
   inquiry_from: "no-reply@musicstudio.local"
 
+# Stripe (Payments + Tax). Non-secret placeholders; the real keys are set per
+# environment — from STRIPE_* env vars in prod (runtime.exs) and locally in
+# config/dev.secret.exs. `api_base_url` is here so tests can point the client at a stub.
+config :music_studio, :stripe,
+  secret_key: nil,
+  publishable_key: nil,
+  webhook_secret: nil,
+  api_base_url: "https://api.stripe.com"
+
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.
 import_config "#{config_env()}.exs"

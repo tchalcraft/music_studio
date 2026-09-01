@@ -20,7 +20,14 @@ import Config
 #       inquiry_to: "you@example.com",
 #       inquiry_from: "no-reply@musicstudio.local"
 #
-# Other external service integrations (billing, transactional email, analytics) are
-# planned for later phases. Add their keys here when those phases land, for example:
+# Stripe (Payments + Tax). Test-mode keys come from the STRIPE_* exports in the
+# project-root .envrc (loaded by direnv); read them from the environment here so the
+# real keys never live in a tracked file. Add this block to config/dev.secret.exs:
 #
-#     config :music_studio, :some_service, api_key: "dev-only-key"
+#     config :music_studio, :stripe,
+#       secret_key: System.get_env("STRIPE_SECRET_KEY"),
+#       publishable_key: System.get_env("STRIPE_PUBLISHABLE_KEY"),
+#       webhook_secret: System.get_env("STRIPE_WEBHOOK_SECRET")
+#
+# Other external service integrations (transactional email, analytics) will follow the
+# same pattern as they land.

@@ -58,6 +58,20 @@ if config_env() == :prod do
       inquiry_from: System.get_env("INQUIRY_FROM_EMAIL") || "no-reply@musicstudio.local"
   end
 
+  # Stripe (Payments + Tax). The secret key is required; the publishable key and webhook
+  # signing secret are read from the environment too (the webhook secret is only needed
+  # once the checkout webhook endpoint exists). Set these as deploy env vars / GitHub
+  # Actions secrets — never commit real keys.
+  config :music_studio, :stripe,
+    secret_key:
+      System.get_env("STRIPE_SECRET_KEY") ||
+        raise("""
+        environment variable STRIPE_SECRET_KEY is missing.
+        Set it to your Stripe secret key, e.g.: sk_live_...
+        """),
+    publishable_key: System.get_env("STRIPE_PUBLISHABLE_KEY"),
+    webhook_secret: System.get_env("STRIPE_WEBHOOK_SECRET")
+
   config :music_studio, MusicStudio.Repo,
     # ssl: true,
     url: database_url,
