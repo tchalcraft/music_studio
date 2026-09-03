@@ -75,4 +75,38 @@ defmodule MusicStudio.SchedulingTest do
     assert {:ok, _} = Scheduling.create_booking(attrs)
     assert {:error, :slot_taken} = Scheduling.create_booking(%{attrs | email: "b@x.com"})
   end
+
+  test "cancelling a booking emails the visitor" do
+    Req.Test.stub(GoogleAuth, fn conn -> Req.Test.json(conn, %{"id" => "evt-1"}) end)
+
+    starts = DateTime.new!(~D[2026-09-10], ~T[22:00:00], "Etc/UTC")
+
+    {:ok, lesson} =
+      Scheduling.create_booking(%{
+        instrument_slug: "piano",
+        duration_minutes: 60,
+        starts_at: starts,
+        name: "Sam Lee",
+        email: "sam@example.com",
+        phone: nil
+      })
+
+    # Drain the confirmation + notification emails from the booking so the cancellation
+    # is next in the mailbox (assert_email_sent inspects the first queued email).
+    flush_emails()
+
+    assert {:ok, _} = Scheduling.cancel_booking(lesson.booking_token)
+
+    assert_email_sent(fn e ->
+      e.to == [{"Sam Lee", "sam@example.com"}] and e.subject =~ "cancel"
+    end)
+  end
+
+  defp flush_emails do
+    receive do
+      {:email, _} -> flush_emails()
+    after
+      0 -> :ok
+    end
+  end
 end

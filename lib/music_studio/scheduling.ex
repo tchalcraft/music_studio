@@ -99,6 +99,7 @@ defmodule MusicStudio.Scheduling do
       |> Repo.update()
 
     delete_event(cancelled)
+    side_effect(fn -> Notifier.deliver_cancellation(lesson_email_details(lesson)) end)
     {:ok, cancelled}
   end
 
@@ -122,6 +123,17 @@ defmodule MusicStudio.Scheduling do
     case Repo.update(changeset) do
       {:ok, updated} ->
         update_event(updated, new_starts_at, new_end)
+
+        side_effect(fn ->
+          Notifier.deliver_reschedule(
+            lesson_email_details(%{
+              lesson
+              | scheduled_start: updated.scheduled_start,
+                scheduled_end: updated.scheduled_end
+            })
+          )
+        end)
+
         {:ok, updated}
 
       {:error, %Ecto.Changeset{errors: errors}} ->
@@ -151,7 +163,13 @@ defmodule MusicStudio.Scheduling do
   end
 
   @spec get_lesson_by_token(String.t()) :: Lesson.t() | nil
-  def get_lesson_by_token(token), do: Repo.one(from l in Lesson, where: l.booking_token == ^token)
+  def get_lesson_by_token(token) do
+    Repo.one(
+      from l in Lesson,
+        where: l.booking_token == ^token,
+        preload: [:student, :instrument, :teacher]
+    )
+  end
 
   # --- internals ---
 
@@ -278,6 +296,25 @@ defmodule MusicStudio.Scheduling do
   end
 
   defp target_calendar, do: Credentials.get().target_calendar_id
+
+  defp lesson_email_details(lesson) do
+    %{
+      visitor_name: full_name(lesson.student),
+      visitor_email: lesson.student.email,
+      instrument: (lesson.instrument && String.downcase(lesson.instrument.name)) || "music",
+      starts_at: lesson.scheduled_start,
+      ends_at: lesson.scheduled_end,
+      duration_minutes: lesson.duration_minutes,
+      manage_url: MusicStudioWeb.Endpoint.url() <> "/book/manage/" <> lesson.booking_token,
+      uid: lesson.id,
+      organizer_email: lesson.teacher && lesson.teacher.email,
+      timezone: cfg(:studio_timezone)
+    }
+  end
+
+  defp full_name(%{first_name: f, last_name: nil}), do: f
+  defp full_name(%{first_name: f, last_name: l}), do: String.trim("#{f} #{l}")
+
   defp gen_token, do: 24 |> :crypto.strong_rand_bytes() |> Base.url_encode64(padding: false)
 
   defp cfg(key),
