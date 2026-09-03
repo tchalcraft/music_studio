@@ -10,7 +10,8 @@ defmodule MusicStudio.Scheduling do
 
   alias Ecto.Multi
   alias MusicStudio.{Analytics, Catalog, Repo, Teaching}
-  alias MusicStudio.Scheduling.{Availability, Credentials, GoogleCalendar, Notifier}
+  alias MusicStudio.Scheduling.{Availability, Credentials, GoogleCalendar, Notifier, Recurrence}
+  alias MusicStudio.Teaching.Enrollment
   alias MusicStudio.Teaching.Lesson
 
   require Logger
@@ -29,7 +30,7 @@ defmodule MusicStudio.Scheduling do
       slots =
         Availability.compute(%{
           blocks: blocks,
-          booked: booked_intervals(time_min, time_max),
+          booked: booked_intervals(time_min, time_max) ++ held_intervals(time_min, time_max),
           duration_minutes: duration,
           grid_minutes: cfg(:slot_grid_minutes),
           buffer_minutes: cfg(:buffer_minutes),
@@ -256,6 +257,43 @@ defmodule MusicStudio.Scheduling do
             l.scheduled_start < ^time_max and l.scheduled_end > ^time_min,
         select: %{starts_at: l.scheduled_start, ends_at: l.scheduled_end}
     )
+  end
+
+  # Recurring slots of active/paused series, projected into the window. These stay reserved
+  # even on skipped/paused weeks (no scheduled Lesson row), so the student keeps their time.
+  defp held_intervals(time_min, time_max) do
+    Enrollment
+    |> where([e], e.status in [:active, :paused] and is_nil(e.deleted_at))
+    |> where([e], not is_nil(e.recurrence_weekday) and not is_nil(e.recurrence_time))
+    |> preload(:offering)
+    |> Repo.all()
+    |> Enum.flat_map(&series_intervals(&1, time_min, time_max))
+  end
+
+  defp series_intervals(enrollment, time_min, time_max) do
+    duration = enrollment.offering && enrollment.offering.duration_minutes
+
+    if is_nil(duration) do
+      []
+    else
+      term_end = Recurrence.term_end(enrollment.started_on)
+
+      enrollment.started_on
+      |> Recurrence.occurrence_dates(enrollment.recurrence_interval_weeks, term_end)
+      |> Enum.map(fn date ->
+        starts =
+          Recurrence.occurrence_utc(
+            date,
+            enrollment.recurrence_time,
+            enrollment.recurrence_timezone
+          )
+
+        %{starts_at: starts, ends_at: DateTime.add(starts, duration, :minute)}
+      end)
+      |> Enum.filter(fn %{starts_at: s, ends_at: e} ->
+        DateTime.compare(s, time_max) == :lt and DateTime.compare(e, time_min) == :gt
+      end)
+    end
   end
 
   defp fetch_teacher do
