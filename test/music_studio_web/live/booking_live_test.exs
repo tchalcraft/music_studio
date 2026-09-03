@@ -129,6 +129,25 @@ defmodule MusicStudioWeb.BookingLiveTest do
     assert html =~ "ms-step"
   end
 
+  test "the lesson step uses selectable boxes, not dropdowns", %{conn: conn} do
+    {:ok, _view, html} = live(conn, "/book")
+    assert html =~ ~s(phx-click="pick_instrument")
+    assert html =~ ~s(phx-click="pick_duration")
+    refute html =~ ~s(name="instrument_slug")
+  end
+
+  test "picking the instrument + duration boxes advances to Schedule", %{conn: conn} do
+    target = Date.add(Date.utc_today(), 10)
+    stub_on_day(target)
+    {:ok, view, _} = live(conn, "/book")
+
+    render_click(view, "pick_instrument", %{"slug" => "piano"})
+    html = render_click(view, "pick_duration", %{"minutes" => "60"})
+
+    assert html =~ "Available times"
+    assert has_element?(view, ~s([aria-current="step"]), "Schedule")
+  end
+
   # A near-future day (clears 24h notice, within the 2-month window) gets a 3–6pm PT block.
   defp stub_on_day(date) do
     d = Date.to_iso8601(date)

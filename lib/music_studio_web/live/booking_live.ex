@@ -43,48 +43,15 @@ defmodule MusicStudioWeb.BookingLive do
      |> assign(:form, to_form(%{"name" => "", "email" => "", "phone" => ""}, as: :booking))}
   end
 
+  # Lesson selection is via boxes (pick_instrument / pick_duration). "choose" is retained
+  # as a change-based path (and for tests); both share load_and_schedule/1.
   @impl true
   def handle_event("choose", %{"instrument_slug" => slug, "duration_minutes" => dur}, socket)
       when slug != "" and dur != "" do
-    duration = String.to_integer(dur)
-    today = today_local()
-
-    socket =
-      assign(socket,
-        instrument_slug: slug,
-        duration_minutes: duration,
-        selected_slot: nil,
-        selected_day: nil
-      )
-
-    case Scheduling.list_available_slots(%{
-           instrument_slug: slug,
-           duration_minutes: duration,
-           from: today,
-           # Single bookings only look two months out — nobody books further than that.
-           to: Date.add(today, 62)
-         }) do
-      {:ok, slots} ->
-        by_day = slots_by_day(slots)
-
-        {:noreply,
-         assign(socket,
-           slots: slots,
-           slots_by_day: by_day,
-           cal_month: earliest_month(by_day, today),
-           slots_error: nil,
-           step: :schedule
-         )}
-
-      {:error, reason} ->
-        {:noreply,
-         assign(socket,
-           slots: [],
-           slots_by_day: %{},
-           slots_error: inspect(reason),
-           step: :schedule
-         )}
-    end
+    {:noreply,
+     socket
+     |> assign(instrument_slug: slug, duration_minutes: String.to_integer(dur))
+     |> load_and_schedule()}
   end
 
   def handle_event("choose", %{"instrument_slug" => slug, "duration_minutes" => dur}, socket) do
@@ -96,6 +63,14 @@ defmodule MusicStudioWeb.BookingLive do
        selected_slot: nil,
        step: :lesson
      )}
+  end
+
+  def handle_event("pick_instrument", %{"slug" => slug}, socket) do
+    {:noreply, socket |> assign(:instrument_slug, slug) |> maybe_advance()}
+  end
+
+  def handle_event("pick_duration", %{"minutes" => minutes}, socket) do
+    {:noreply, socket |> assign(:duration_minutes, String.to_integer(minutes)) |> maybe_advance()}
   end
 
   def handle_event("set_cadence", %{"cadence" => cadence}, socket) do
@@ -269,20 +244,42 @@ defmodule MusicStudioWeb.BookingLive do
 
       <section :if={@step == :lesson} class="mt-6">
         <h2 class="font-medium">Choose your lesson</h2>
-        <form id="booking-picker" phx-change="choose" class="mt-3 flex gap-4">
-          <select name="instrument_slug" class="rounded border p-2">
-            <option value="">Instrument…</option>
-            <option :for={i <- @instruments} value={i.slug} selected={i.slug == @instrument_slug}>
-              {i.name}
-            </option>
-          </select>
-          <select name="duration_minutes" class="rounded border p-2">
-            <option value="">Length…</option>
-            <option :for={d <- @durations} value={d} selected={d == @duration_minutes}>
-              {d} min
-            </option>
-          </select>
-        </form>
+
+        <p class="mt-3 text-sm font-medium text-gray-500">Instrument</p>
+        <div class="mt-2 grid grid-cols-3 gap-2">
+          <button
+            :for={i <- @instruments}
+            type="button"
+            phx-click="pick_instrument"
+            phx-value-slug={i.slug}
+            aria-pressed={@instrument_slug == i.slug}
+            class={[
+              "rounded-lg border px-4 py-3 text-center hover:border-indigo-600",
+              (@instrument_slug == i.slug && "border-indigo-600 bg-indigo-600 text-white") ||
+                "border-gray-300"
+            ]}
+          >
+            {i.name}
+          </button>
+        </div>
+
+        <p class="mt-4 text-sm font-medium text-gray-500">Length</p>
+        <div class="mt-2 grid grid-cols-3 gap-2">
+          <button
+            :for={d <- @durations}
+            type="button"
+            phx-click="pick_duration"
+            phx-value-minutes={d}
+            aria-pressed={@duration_minutes == d}
+            class={[
+              "rounded-lg border px-4 py-3 text-center hover:border-indigo-600",
+              (@duration_minutes == d && "border-indigo-600 bg-indigo-600 text-white") ||
+                "border-gray-300"
+            ]}
+          >
+            {d} min
+          </button>
+        </div>
       </section>
 
       <section :if={@step == :schedule} class="mt-6">
@@ -546,6 +543,45 @@ defmodule MusicStudioWeb.BookingLive do
 
   defp today_local,
     do: DateTime.utc_now() |> DateTime.shift_zone!(studio_tz()) |> DateTime.to_date()
+
+  # Advance to the schedule step once both instrument and duration are chosen.
+  defp maybe_advance(socket) do
+    if socket.assigns.instrument_slug && socket.assigns.duration_minutes,
+      do: load_and_schedule(socket),
+      else: socket
+  end
+
+  defp load_and_schedule(socket) do
+    today = today_local()
+    socket = assign(socket, selected_slot: nil, selected_day: nil)
+
+    case Scheduling.list_available_slots(%{
+           instrument_slug: socket.assigns.instrument_slug,
+           duration_minutes: socket.assigns.duration_minutes,
+           from: today,
+           # Single bookings only look two months out — nobody books further than that.
+           to: Date.add(today, 62)
+         }) do
+      {:ok, slots} ->
+        by_day = slots_by_day(slots)
+
+        assign(socket,
+          slots: slots,
+          slots_by_day: by_day,
+          cal_month: earliest_month(by_day, today),
+          slots_error: nil,
+          step: :schedule
+        )
+
+      {:error, reason} ->
+        assign(socket,
+          slots: [],
+          slots_by_day: %{},
+          slots_error: inspect(reason),
+          step: :schedule
+        )
+    end
+  end
 
   defp local_date(dt), do: dt |> DateTime.shift_zone!(studio_tz()) |> DateTime.to_date()
 
