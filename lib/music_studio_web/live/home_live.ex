@@ -96,9 +96,8 @@ defmodule MusicStudioWeb.HomeLive do
               welcoming local studio, for beginners and returning musicians alike.
             </p>
             <div style="margin-top:2rem;display:flex;gap:0.75rem;flex-wrap:wrap">
-              <.link navigate={~p"/book"} class="ms-btn ms-btn--primary">Book a session</.link>
+              <a class="ms-btn ms-btn--primary" href="#contact">Inquire about lessons</a>
               <a class="ms-btn ms-btn--ghost" href="#lessons">See lessons &amp; rates</a>
-              <a class="ms-btn ms-btn--ghost" href="#contact">Inquire</a>
             </div>
           </div>
         </section>
@@ -176,10 +175,6 @@ defmodule MusicStudioWeb.HomeLive do
                   beginner to intermediate players just starting out or picking it back up.
                 </p>
               </div>
-            </div>
-
-            <div style="margin-top:2rem">
-              <.link navigate={~p"/book"} class="ms-btn ms-btn--primary">Book a session</.link>
             </div>
 
             <div class="ms-card" style="margin-top:2rem;max-width:32rem">
