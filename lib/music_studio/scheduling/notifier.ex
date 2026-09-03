@@ -43,7 +43,7 @@ defmodule MusicStudio.Scheduling.Notifier do
     confirmation =
       new()
       |> to({details.visitor_name, details.visitor_email})
-      |> from({"Tristan Music", from_addr})
+      |> from({"Tristan Chalcraft Music", from_addr})
       |> subject("Your #{details.instrument} lesson is booked — #{when_str}")
       |> html_body(EmailTemplate.html(body_opts))
       |> text_body(EmailTemplate.text(body_opts ++ [details: body_opts[:details] ++ extra]))
@@ -116,7 +116,7 @@ defmodule MusicStudio.Scheduling.Notifier do
     email =
       new()
       |> to({details.visitor_name, details.visitor_email})
-      |> from({"Tristan Music", cfg(:notify_from)})
+      |> from({"Tristan Chalcraft Music", cfg(:notify_from)})
       |> subject("Your #{details.instrument} lessons are booked")
       |> html_body(EmailTemplate.html(opts))
       |> text_body(EmailTemplate.text(opts))
@@ -157,7 +157,7 @@ defmodule MusicStudio.Scheduling.Notifier do
     email =
       new()
       |> to({details.visitor_name, details.visitor_email})
-      |> from({"Tristan Music", cfg(:notify_from)})
+      |> from({"Tristan Chalcraft Music", cfg(:notify_from)})
       |> subject(subject)
       |> html_body(EmailTemplate.html(opts))
       |> text_body(EmailTemplate.text(opts))

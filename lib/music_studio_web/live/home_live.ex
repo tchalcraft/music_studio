@@ -72,7 +72,7 @@ defmodule MusicStudioWeb.HomeLive do
     <div class="ms-root">
       <header class="ms-nav">
         <div class="ms-container ms-nav__inner">
-          <a href="#top" class="ms-nav__brand">Tristan</a>
+          <a href="#top" class="ms-nav__brand">Tristan Chalcraft Music</a>
           <nav class="ms-nav__links">
             <a class="ms-nav__link" href="#about">About</a>
             <a class="ms-nav__link" href="#lessons">Lessons &amp; Rates</a>
@@ -197,6 +197,11 @@ defmodule MusicStudioWeb.HomeLive do
                 </tbody>
               </table>
               <p class="ms-note" style="margin-top:0.75rem">Payment by cash or e-transfer.</p>
+              <p class="ms-note" style="margin-top:0.35rem">
+                <strong>Scheduling policy:</strong>
+                cancel or reschedule with at least 24 hours' notice. Recurring lessons can be
+                paused for up to one month, and your regular time stays reserved while paused.
+              </p>
             </div>
           </div>
         </section>
@@ -304,7 +309,10 @@ defmodule MusicStudioWeb.HomeLive do
 
       <footer class="ms-footer">
         <div class="ms-container" style="padding-block:2rem">
-          <p>© {Date.utc_today().year} Tristan · Music lessons in the Greater Vancouver area.</p>
+          <p>
+            © {Date.utc_today().year} Tristan Chalcraft Music · Music lessons in the Greater
+            Vancouver area.
+          </p>
         </div>
       </footer>
     </div>
