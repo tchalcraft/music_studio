@@ -16,6 +16,12 @@ defmodule MusicStudio.Teaching.Enrollment do
     field :started_on, :date
     field :ended_on, :date
     field :deleted_at, :utc_datetime_usec
+    field :recurrence_interval_weeks, :integer
+    field :recurrence_weekday, :integer
+    field :recurrence_time, :time
+    field :recurrence_timezone, :string
+    field :booking_token, :string
+    field :contact_email, :string
 
     belongs_to :student, Student
     belongs_to :teacher, Teacher
@@ -37,6 +43,12 @@ defmodule MusicStudio.Teaching.Enrollment do
       :started_on,
       :ended_on,
       :deleted_at,
+      :recurrence_interval_weeks,
+      :recurrence_weekday,
+      :recurrence_time,
+      :recurrence_timezone,
+      :booking_token,
+      :contact_email,
       :student_id,
       :teacher_id,
       :instrument_id,
@@ -44,10 +56,13 @@ defmodule MusicStudio.Teaching.Enrollment do
       :location_id
     ])
     |> validate_required([:status, :student_id, :teacher_id, :instrument_id])
+    |> validate_inclusion(:recurrence_interval_weeks, [1, 2])
+    |> validate_inclusion(:recurrence_weekday, 1..7)
     |> assoc_constraint(:student)
     |> assoc_constraint(:teacher)
     |> assoc_constraint(:instrument)
     |> assoc_constraint(:offering)
     |> assoc_constraint(:location)
+    |> unique_constraint(:booking_token)
   end
 end
