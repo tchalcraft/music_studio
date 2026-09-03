@@ -92,6 +92,143 @@ defmodule MusicStudio.Scheduling do
     end
   end
 
+  @spec create_series(map()) :: {:ok, map()} | {:error, term()}
+  def create_series(params) do
+    with {:ok, teacher} <- fetch_teacher(),
+         {:ok, instrument} <- fetch_instrument(params.instrument_slug),
+         {:ok, offering} <- fetch_offering(params.duration_minutes),
+         {:ok, preview} <- preview_series(params) do
+      tz = cfg(:studio_timezone)
+      local_first = DateTime.shift_zone!(params.first_starts_at, tz)
+
+      series = %{
+        teacher: teacher,
+        instrument: instrument,
+        offering: offering,
+        preview: preview,
+        weekday: Date.day_of_week(DateTime.to_date(local_first)),
+        time: local_first |> DateTime.to_time() |> Time.truncate(:second),
+        tz: tz
+      }
+
+      case Repo.transaction(series_multi(params, series)) do
+        {:ok, %{enrollment: enr} = changes} ->
+          lessons = collect_lessons(changes)
+          after_series(enr, lessons, series, params)
+          {:ok, %{enrollment: enr, lessons: lessons, conflicted: preview.conflicted}}
+
+        {:error, _step, %Ecto.Changeset{errors: errors}, _} ->
+          booking_error(errors)
+
+        {:error, _step, reason, _} ->
+          {:error, reason}
+      end
+    end
+  end
+
+  defp series_multi(params, series) do
+    base =
+      Multi.new()
+      |> Multi.run(:student, fn _repo, _ -> upsert_student(params) end)
+      |> Multi.insert(:enrollment, fn %{student: student} ->
+        series_enrollment_changeset(params, series, student)
+      end)
+
+    series.preview.bookable
+    |> Enum.with_index()
+    |> Enum.reduce(base, fn {starts_at, i}, multi ->
+      Multi.insert(multi, {:lesson, i}, fn %{student: student, enrollment: enrollment} ->
+        series_lesson_changeset(params, series, student, enrollment, starts_at)
+      end)
+    end)
+  end
+
+  defp series_enrollment_changeset(params, series, student) do
+    Enrollment.changeset(%Enrollment{}, %{
+      status: :active,
+      started_on: series.preview.start_date,
+      ended_on: series.preview.term_end,
+      recurrence_interval_weeks: series.preview.interval_weeks,
+      recurrence_weekday: series.weekday,
+      recurrence_time: series.time,
+      recurrence_timezone: series.tz,
+      booking_token: gen_token(),
+      contact_email: params.email,
+      teacher_id: series.teacher.id,
+      student_id: student.id,
+      instrument_id: series.instrument.id,
+      offering_id: series.offering.id
+    })
+  end
+
+  defp series_lesson_changeset(params, series, student, enrollment, starts_at) do
+    ends_at = DateTime.add(starts_at, params.duration_minutes, :minute)
+
+    Lesson.changeset(%Lesson{}, %{
+      scheduled_start: DateTime.truncate(starts_at, :second),
+      scheduled_end: DateTime.truncate(ends_at, :second),
+      duration_minutes: params.duration_minutes,
+      status: :scheduled,
+      price_cents: series.offering.price_cents,
+      currency: series.offering.currency,
+      teacher_id: series.teacher.id,
+      student_id: student.id,
+      instrument_id: series.instrument.id,
+      offering_id: series.offering.id,
+      enrollment_id: enrollment.id,
+      booking_token: gen_token()
+    })
+  end
+
+  defp collect_lessons(changes) do
+    changes
+    |> Enum.filter(fn {k, _v} -> match?({:lesson, _}, k) end)
+    |> Enum.sort_by(fn {{:lesson, i}, _v} -> i end)
+    |> Enum.map(fn {_k, lesson} -> lesson end)
+  end
+
+  defp after_series(enrollment, lessons, series, params) do
+    Enum.each(lessons, fn lesson ->
+      side_effect(fn ->
+        ends_at = DateTime.add(lesson.scheduled_start, lesson.duration_minutes, :minute)
+        write_event(lesson, series.instrument, params, ends_at)
+      end)
+    end)
+
+    side_effect(fn ->
+      Notifier.deliver_series_emails(series_email_details(enrollment, lessons, series, params))
+    end)
+
+    side_effect(fn ->
+      Analytics.record_event(%{
+        verb: "series_booked",
+        subject_type: "enrollment",
+        subject_id: enrollment.id,
+        metadata: %{
+          "instrument" => params.instrument_slug,
+          "interval_weeks" => series.preview.interval_weeks,
+          "lessons" => length(lessons),
+          "conflicted" => length(series.preview.conflicted)
+        }
+      })
+    end)
+
+    :ok
+  end
+
+  defp series_email_details(enrollment, lessons, series, params) do
+    %{
+      visitor_name: params.name,
+      visitor_email: params.email,
+      instrument: String.downcase(series.instrument.name),
+      interval_weeks: series.preview.interval_weeks,
+      lesson_starts: Enum.map(lessons, & &1.scheduled_start),
+      conflicted: series.preview.conflicted,
+      manage_url: MusicStudioWeb.Endpoint.url() <> "/book/manage/" <> enrollment.booking_token,
+      timezone: series.tz
+    }
+  end
+
   @spec create_booking(map()) :: {:ok, Lesson.t()} | {:error, term()}
   def create_booking(params) do
     with {:ok, teacher} <- fetch_teacher(),
