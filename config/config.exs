@@ -113,7 +113,9 @@ config :music_studio, MusicStudio.Scheduling,
   google_redirect_uri: nil,
   setup_token: nil,
   notify_from: "no-reply@musicstudio.local",
-  notify_to: "owner@example.com"
+  notify_to: "owner@example.com",
+  website_url: nil,
+  social: [instagram: nil, facebook: nil, youtube: nil]
 
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.

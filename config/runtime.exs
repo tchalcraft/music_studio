@@ -88,7 +88,13 @@ if config_env() == :prod do
     google_redirect_uri: System.get_env("GOOGLE_REDIRECT_URI"),
     setup_token: System.get_env("GOOGLE_SETUP_TOKEN"),
     notify_from: System.get_env("BOOKING_FROM_EMAIL") || "no-reply@musicstudio.local",
-    notify_to: System.get_env("INQUIRY_TO_EMAIL") || "owner@example.com"
+    notify_to: System.get_env("INQUIRY_TO_EMAIL") || "owner@example.com",
+    website_url: System.get_env("WEBSITE_URL"),
+    social: [
+      instagram: System.get_env("SOCIAL_INSTAGRAM_URL"),
+      facebook: System.get_env("SOCIAL_FACEBOOK_URL"),
+      youtube: System.get_env("SOCIAL_YOUTUBE_URL")
+    ]
 
   config :music_studio, MusicStudio.Repo,
     # ssl: true,

@@ -41,6 +41,10 @@ import Config
 #       notify_from: "no-reply@musicstudio.local",
 #       notify_to: "you@example.com"
 #
+# Booking email footer links (optional; only set ones render):
+#   website_url: "https://your-studio-site.example",
+#   social: [instagram: "https://instagram.com/…", facebook: nil, youtube: nil]
+#
 # Resend (local): dev uses the Local adapter (/dev/mailbox) by default; to test real
 # sends, add to config/dev.secret.exs:
 #
