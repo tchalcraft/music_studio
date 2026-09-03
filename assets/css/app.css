@@ -224,3 +224,42 @@
 /* Footer */
 .ms-footer { border-top: 1px solid var(--ms-border); color: var(--ms-text-muted); font-size: 0.9rem; }
 .ms-footer a { color: var(--ms-accent-text); text-decoration: none; }
+
+/* Booking progress bar — see BookingLive. Tokens defined above in :root / [data-theme]. */
+.ms-stepbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  margin-top: 1.5rem;
+  padding: 0;
+  list-style: none;
+  font-size: 0.875rem;
+  color: var(--ms-text-muted);
+}
+.ms-step {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.ms-step-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--ms-border);
+  font-size: 0.75rem;
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+.ms-step.is-current { color: var(--ms-text); font-weight: 600; }
+.ms-step.is-current .ms-step-badge { border-color: var(--ms-accent); color: var(--ms-accent-text); }
+.ms-step.is-done .ms-step-badge {
+  border-color: var(--ms-accent);
+  background: var(--ms-accent);
+  color: var(--ms-on-accent);
+}
+@media (prefers-reduced-motion: reduce) {
+  .ms-step-badge { transition: none; }
+}

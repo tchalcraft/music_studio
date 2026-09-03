@@ -122,4 +122,10 @@ defmodule MusicStudioWeb.BookingLiveTest do
     html = render_click(view, "pick_slot", %{"start" => @first_slot_iso})
     assert html =~ ~s(value="Sam Lee")
   end
+
+  test "the step bar uses the branded ms- classes", %{conn: conn} do
+    {:ok, _view, html} = live(conn, "/book")
+    assert html =~ ~s(class="ms-stepbar")
+    assert html =~ "ms-step"
+  end
 end

@@ -114,18 +114,13 @@ defmodule MusicStudioWeb.BookingLive do
     assigns = assign(assigns, :steps, @steps)
 
     ~H"""
-    <ol class="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm" aria-label="Booking progress">
+    <ol class="ms-stepbar" aria-label="Booking progress">
       <li
         :for={{{key, label}, idx} <- Enum.with_index(@steps, 1)}
-        class={["flex items-center gap-2", @current == key && "font-semibold text-indigo-700"]}
+        class={["ms-step", step_status(@current, key)]}
         aria-current={(@current == key && "step") || nil}
       >
-        <span class={[
-          "flex size-6 items-center justify-center rounded-full border text-xs",
-          done?(@current, key) && "border-indigo-600 bg-indigo-600 text-white",
-          !done?(@current, key) && @current == key && "border-indigo-600 text-indigo-700",
-          !done?(@current, key) && @current != key && "border-gray-300 text-gray-400"
-        ]}>
+        <span class="ms-step-badge">
           <.icon :if={done?(@current, key)} name="hero-check-mini" class="size-4" />
           <span :if={!done?(@current, key)}>{idx}</span>
         </span>
@@ -237,6 +232,14 @@ defmodule MusicStudioWeb.BookingLive do
 
   # A step is "done" (shows a check) once the current step is past it.
   defp done?(current, key), do: step_index(current) > step_index(key)
+
+  defp step_status(current, key) do
+    cond do
+      current == key -> "is-current"
+      done?(current, key) -> "is-done"
+      true -> "is-todo"
+    end
+  end
 
   defp blank_to_nil(""), do: nil
   defp blank_to_nil(v), do: v
