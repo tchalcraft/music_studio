@@ -31,7 +31,10 @@ defmodule MusicStudioWeb.BookingLive do
      |> assign(:slots, [])
      |> assign(:slots_error, nil)
      |> assign(:selected_slot, nil)
+     |> assign(:cadence, "once")
+     |> assign(:series_preview, nil)
      |> assign(:booked, nil)
+     |> assign(:booked_series, nil)
      |> assign(:form, to_form(%{"name" => "", "email" => "", "phone" => ""}, as: :booking))}
   end
 
@@ -68,9 +71,13 @@ defmodule MusicStudioWeb.BookingLive do
      )}
   end
 
+  def handle_event("set_cadence", %{"cadence" => cadence}, socket) do
+    {:noreply, socket |> assign(:cadence, cadence) |> maybe_preview()}
+  end
+
   def handle_event("pick_slot", %{"start" => iso}, socket) do
     {:ok, dt, _} = DateTime.from_iso8601(iso)
-    {:noreply, assign(socket, selected_slot: dt, step: :details)}
+    {:noreply, socket |> assign(selected_slot: dt, step: :details) |> maybe_preview()}
   end
 
   def handle_event("validate_details", %{"booking" => params}, socket) do
@@ -78,6 +85,17 @@ defmodule MusicStudioWeb.BookingLive do
   end
 
   def handle_event("book", %{"booking" => params}, socket) do
+    case socket.assigns.cadence do
+      "once" -> book_single(socket, params)
+      _ -> book_series(socket, params)
+    end
+  end
+
+  def handle_event("back", %{"to" => to}, socket) do
+    {:noreply, assign(socket, :step, String.to_existing_atom(to))}
+  end
+
+  defp book_single(socket, params) do
     attrs = %{
       instrument_slug: socket.assigns.instrument_slug,
       duration_minutes: socket.assigns.duration_minutes,
@@ -102,9 +120,47 @@ defmodule MusicStudioWeb.BookingLive do
     end
   end
 
-  def handle_event("back", %{"to" => to}, socket) do
-    {:noreply, assign(socket, :step, String.to_existing_atom(to))}
+  defp book_series(socket, params) do
+    attrs = %{
+      instrument_slug: socket.assigns.instrument_slug,
+      duration_minutes: socket.assigns.duration_minutes,
+      first_starts_at: socket.assigns.selected_slot,
+      interval_weeks: interval_for(socket.assigns.cadence),
+      name: params["name"],
+      email: params["email"],
+      phone: params["phone"]
+    }
+
+    case Scheduling.create_series(attrs) do
+      {:ok, %{lessons: lessons, conflicted: conflicted}} ->
+        summary = %{count: length(lessons), conflicted: conflicted}
+        {:noreply, assign(socket, booked_series: summary, step: :done)}
+
+      {:error, _} ->
+        {:noreply, put_flash(socket, :error, "Something went wrong. Please try again.")}
+    end
   end
+
+  defp maybe_preview(%{assigns: %{cadence: "once"}} = socket),
+    do: assign(socket, :series_preview, nil)
+
+  defp maybe_preview(%{assigns: %{selected_slot: nil}} = socket),
+    do: assign(socket, :series_preview, nil)
+
+  defp maybe_preview(socket) do
+    {:ok, preview} =
+      Scheduling.preview_series(%{
+        instrument_slug: socket.assigns.instrument_slug,
+        duration_minutes: socket.assigns.duration_minutes,
+        first_starts_at: socket.assigns.selected_slot,
+        interval_weeks: interval_for(socket.assigns.cadence)
+      })
+
+    assign(socket, :series_preview, preview)
+  end
+
+  defp interval_for("biweekly"), do: 2
+  defp interval_for(_), do: 1
 
   ## Components
 
@@ -173,6 +229,20 @@ defmodule MusicStudioWeb.BookingLive do
           Couldn't load times. Please try again.
         </p>
 
+        <form phx-change="set_cadence" class="mt-3 flex flex-wrap gap-4 text-sm">
+          <label class="flex items-center gap-1">
+            <input type="radio" name="cadence" value="once" checked={@cadence == "once"} /> Just once
+          </label>
+          <label class="flex items-center gap-1">
+            <input type="radio" name="cadence" value="weekly" checked={@cadence == "weekly"} />
+            Weekly (school year)
+          </label>
+          <label class="flex items-center gap-1">
+            <input type="radio" name="cadence" value="biweekly" checked={@cadence == "biweekly"} />
+            Every other week
+          </label>
+        </form>
+
         <p :if={!@slots_error and @slots == []} class="mt-4 text-sm text-gray-500">
           No open times in the next few weeks. Please check back soon.
         </p>
@@ -207,6 +277,14 @@ defmodule MusicStudioWeb.BookingLive do
           {slot_label(@selected_slot)} · {@duration_minutes} min
         </p>
 
+        <p :if={@series_preview} class="mt-2 text-sm text-indigo-700">
+          {length(@series_preview.bookable)} lessons through June 30<span :if={
+            @series_preview.conflicted != []
+          }>
+            · {length(@series_preview.conflicted)} weeks need another time
+          </span>
+        </p>
+
         <.form for={@form} phx-change="validate_details" phx-submit="book" class="mt-4 space-y-3">
           <.input field={@form[:name]} label="Your name" required />
           <.input field={@form[:email]} type="email" label="Email" required />
@@ -218,7 +296,15 @@ defmodule MusicStudioWeb.BookingLive do
       </section>
 
       <section :if={@step == :done} class="mt-6 rounded border p-4">
-        <p class="font-medium">
+        <p :if={@booked_series} class="font-medium">
+          Your series is booked — {@booked_series.count} lessons through June 30! Check your email
+          for the schedule and calendar invites.
+        </p>
+        <p :if={@booked_series && @booked_series.conflicted != []} class="mt-2 text-sm text-gray-600">
+          {length(@booked_series.conflicted)} week(s) couldn't use your usual time — we'll follow up
+          about alternates.
+        </p>
+        <p :if={!@booked_series} class="font-medium">
           You're booked! Check your email for a confirmation and calendar invite.
         </p>
       </section>
