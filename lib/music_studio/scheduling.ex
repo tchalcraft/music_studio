@@ -277,13 +277,21 @@ defmodule MusicStudio.Scheduling do
   end
 
   defp do_cancel(lesson) do
+    {:ok, cancelled} = cancel_lesson_record(lesson)
+    side_effect(fn -> Notifier.deliver_cancellation(lesson_email_details(lesson)) end)
+    {:ok, cancelled}
+  end
+
+  # Cancels one lesson's DB row + Google event, WITHOUT emailing. Touches no associations,
+  # so it is safe on non-preloaded lessons (used for bulk series cancel/pause, which send at
+  # most a single series-level message rather than one email per lesson).
+  defp cancel_lesson_record(lesson) do
     {:ok, cancelled} =
       lesson
       |> Lesson.changeset(%{status: :cancelled, deleted_at: DateTime.utc_now()})
       |> Repo.update()
 
     delete_event(cancelled)
-    side_effect(fn -> Notifier.deliver_cancellation(lesson_email_details(lesson)) end)
     {:ok, cancelled}
   end
 
@@ -353,6 +361,42 @@ defmodule MusicStudio.Scheduling do
         where: l.booking_token == ^token,
         preload: [:student, :instrument, :teacher]
     )
+  end
+
+  @spec get_series_by_token(String.t()) :: Enrollment.t() | nil
+  def get_series_by_token(token), do: Repo.get_by(Enrollment, booking_token: token)
+
+  @spec list_series_lessons(Enrollment.t()) :: [Lesson.t()]
+  def list_series_lessons(%Enrollment{id: id}) do
+    Repo.all(
+      from l in Lesson,
+        where: l.enrollment_id == ^id and l.status == :scheduled and is_nil(l.deleted_at),
+        order_by: [asc: l.scheduled_start]
+    )
+  end
+
+  @spec skip_occurrence(String.t()) :: {:ok, Lesson.t()} | {:error, term()}
+  def skip_occurrence(lesson_token) do
+    case get_lesson_by_token(lesson_token) do
+      nil -> {:error, :not_found}
+      lesson -> do_cancel(lesson)
+    end
+  end
+
+  @spec cancel_series(String.t()) :: {:ok, Enrollment.t()} | {:error, term()}
+  def cancel_series(series_token) do
+    case get_series_by_token(series_token) do
+      nil -> {:error, :not_found}
+      enrollment -> do_cancel_series(enrollment)
+    end
+  end
+
+  defp do_cancel_series(enrollment) do
+    Enum.each(list_series_lessons(enrollment), &cancel_lesson_record/1)
+
+    enrollment
+    |> Enrollment.changeset(%{status: :cancelled, deleted_at: DateTime.utc_now()})
+    |> Repo.update()
   end
 
   # --- internals ---
