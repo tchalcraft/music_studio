@@ -380,13 +380,13 @@ defmodule MusicStudioWeb.BookingLive do
 
           <div :if={@selected_day} class="mt-5">
             <h3 class="text-sm font-medium">{Calendar.strftime(@selected_day, "%A, %b %-d")}</h3>
-            <div class="mt-2 flex flex-wrap gap-2">
+            <div class="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-5">
               <button
                 :for={slot <- day_slots(@selected_day, @slots_by_day)}
                 type="button"
                 phx-click="pick_slot"
                 phx-value-start={DateTime.to_iso8601(slot.starts_at)}
-                class="rounded border px-3 py-1 hover:border-indigo-600"
+                class="rounded border px-2 py-1 text-center text-sm tabular-nums hover:border-indigo-600"
               >
                 {time_label(slot.starts_at)}
               </button>
@@ -401,24 +401,27 @@ defmodule MusicStudioWeb.BookingLive do
             Pause or cancel anytime; billed monthly.
           </p>
 
-          <div class="mt-3 space-y-2">
-            <div :for={day <- representative_week()} class="flex flex-wrap items-baseline gap-2">
-              <span class="w-24 shrink-0 text-sm font-medium text-gray-700">
+          <div class="mt-3 space-y-3">
+            <div :for={day <- representative_week()} class="flex items-start gap-3">
+              <span class="w-24 shrink-0 pt-1.5 text-sm font-medium text-gray-700">
                 {Calendar.strftime(day, "%A")}
               </span>
-              <button
-                :for={slot <- day_slots(day, @slots_by_day)}
-                type="button"
-                phx-click="pick_pattern"
-                phx-value-start={DateTime.to_iso8601(slot.starts_at)}
-                class={[
-                  "rounded border px-3 py-1 text-sm hover:border-indigo-600",
-                  pattern_selected?(@rec_pattern, slot.starts_at) && "bg-indigo-600 text-white"
-                ]}
-              >
-                {time_label(slot.starts_at)}
-              </button>
-              <span :if={day_slots(day, @slots_by_day) == []} class="text-sm text-gray-300">—</span>
+              <div class="grid flex-1 grid-cols-3 gap-2 sm:grid-cols-6">
+                <button
+                  :for={slot <- day_slots(day, @slots_by_day)}
+                  type="button"
+                  phx-click="pick_pattern"
+                  phx-value-start={DateTime.to_iso8601(slot.starts_at)}
+                  class={[
+                    "rounded border px-2 py-1 text-center text-sm tabular-nums hover:border-indigo-600",
+                    pattern_selected?(@rec_pattern, slot.starts_at) &&
+                      "border-indigo-600 bg-indigo-600 text-white"
+                  ]}
+                >
+                  {time_label(slot.starts_at)}
+                </button>
+                <span :if={day_slots(day, @slots_by_day) == []} class="pt-1.5 text-sm text-gray-300">—</span>
+              </div>
             </div>
           </div>
 
