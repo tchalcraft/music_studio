@@ -1,25 +1,17 @@
 defmodule MusicStudio.Scheduling.GoogleCalendarTest do
   use MusicStudio.DataCase, async: false
 
-  alias MusicStudio.Scheduling.{Credentials, GoogleAuth, GoogleCalendar}
+  import MusicStudio.SchedulingStubs
+
+  alias MusicStudio.Scheduling.GoogleCalendar
 
   setup do
-    Application.put_env(:music_studio, :scheduling_req_options, plug: {Req.Test, GoogleAuth})
-    on_exit(fn -> Application.delete_env(:music_studio, :scheduling_req_options) end)
-
-    {:ok, _} =
-      Credentials.upsert(%{
-        provider: "google",
-        refresh_token: "rt",
-        access_token: "at",
-        access_token_expires_at: DateTime.add(DateTime.utc_now(), 3600, :second)
-      })
-
+    service_account_config()
     :ok
   end
 
   test "list_events parses start/end dateTimes into UTC intervals" do
-    Req.Test.stub(GoogleAuth, fn conn ->
+    stub_google(fn conn ->
       Req.Test.json(conn, %{
         "items" => [
           %{
@@ -38,7 +30,7 @@ defmodule MusicStudio.Scheduling.GoogleCalendarTest do
   end
 
   test "insert_event returns the created event id" do
-    Req.Test.stub(GoogleAuth, fn conn -> Req.Test.json(conn, %{"id" => "evt-9"}) end)
+    stub_google(fn conn -> Req.Test.json(conn, %{"id" => "evt-9"}) end)
 
     assert {:ok, "evt-9"} =
              GoogleCalendar.insert_event("cal-1", %{

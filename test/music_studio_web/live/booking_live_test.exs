@@ -2,15 +2,16 @@ defmodule MusicStudioWeb.BookingLiveTest do
   use MusicStudioWeb.ConnCase, async: false
   import Phoenix.LiveViewTest
 
+  import MusicStudio.SchedulingStubs
+
   alias MusicStudio.Catalog
-  alias MusicStudio.Scheduling.{Credentials, GoogleAuth}
 
   # First availability block is far in the future so it clears the 24h min-notice window.
   # 3:00–5:00 PM PT on 2027-01-05 (UTC-08:00) → 60-min/30-grid slots at 23:00, 23:30, 00:00Z.
   @first_slot_iso "2027-01-05T23:00:00Z"
 
-  defp stub_google do
-    Req.Test.stub(GoogleAuth, fn conn ->
+  defp stub_far_future do
+    stub_google(fn conn ->
       case conn.method do
         "GET" ->
           Req.Test.json(conn, %{
@@ -29,8 +30,7 @@ defmodule MusicStudioWeb.BookingLiveTest do
   end
 
   setup do
-    Application.put_env(:music_studio, :scheduling_req_options, plug: {Req.Test, GoogleAuth})
-    on_exit(fn -> Application.delete_env(:music_studio, :scheduling_req_options) end)
+    service_account_config()
 
     {:ok, _} = Catalog.create_teacher(%{name: "Tristan", email: "t@example.com", active: true})
     {:ok, _} = Catalog.create_instrument(%{name: "Piano", slug: "piano", active: true})
@@ -41,16 +41,6 @@ defmodule MusicStudioWeb.BookingLiveTest do
         duration_minutes: 60,
         price_cents: 7000,
         active: true
-      })
-
-    {:ok, _} =
-      Credentials.upsert(%{
-        provider: "google",
-        refresh_token: "rt",
-        access_token: "at",
-        access_token_expires_at: DateTime.add(DateTime.utc_now(), 3600, :second),
-        availability_calendar_id: "c",
-        target_calendar_id: "c"
       })
 
     :ok
@@ -71,7 +61,7 @@ defmodule MusicStudioWeb.BookingLiveTest do
   end
 
   test "choosing instrument + duration advances to the Schedule step", %{conn: conn} do
-    stub_google()
+    stub_far_future()
     {:ok, view, _} = live(conn, "/book")
 
     html =
@@ -82,7 +72,7 @@ defmodule MusicStudioWeb.BookingLiveTest do
   end
 
   test "picking a slot advances to Your details", %{conn: conn} do
-    stub_google()
+    stub_far_future()
     {:ok, view, _} = live(conn, "/book")
     render_change(view, "choose", %{"instrument_slug" => "piano", "duration_minutes" => "60"})
 
@@ -92,7 +82,7 @@ defmodule MusicStudioWeb.BookingLiveTest do
   end
 
   test "completing the flow shows the Confirmed step", %{conn: conn} do
-    stub_google()
+    stub_far_future()
     {:ok, view, _} = live(conn, "/book")
     render_change(view, "choose", %{"instrument_slug" => "piano", "duration_minutes" => "60"})
     render_click(view, "pick_slot", %{"start" => @first_slot_iso})
@@ -107,7 +97,7 @@ defmodule MusicStudioWeb.BookingLiveTest do
   end
 
   test "Back from details returns to Schedule and keeps entered details", %{conn: conn} do
-    stub_google()
+    stub_far_future()
     {:ok, view, _} = live(conn, "/book")
     render_change(view, "choose", %{"instrument_slug" => "piano", "duration_minutes" => "60"})
     render_click(view, "pick_slot", %{"start" => @first_slot_iso})
@@ -152,7 +142,7 @@ defmodule MusicStudioWeb.BookingLiveTest do
   defp stub_on_day(date) do
     d = Date.to_iso8601(date)
 
-    Req.Test.stub(GoogleAuth, fn conn ->
+    stub_google(fn conn ->
       case conn.method do
         "GET" ->
           Req.Test.json(conn, %{

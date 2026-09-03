@@ -1,13 +1,13 @@
 defmodule MusicStudio.Scheduling.PreviewSeriesTest do
   use MusicStudio.DataCase, async: false
 
+  import MusicStudio.SchedulingStubs
+
   alias MusicStudio.Catalog
   alias MusicStudio.Scheduling
-  alias MusicStudio.Scheduling.{Credentials, GoogleAuth}
 
   setup do
-    Application.put_env(:music_studio, :scheduling_req_options, plug: {Req.Test, GoogleAuth})
-    on_exit(fn -> Application.delete_env(:music_studio, :scheduling_req_options) end)
+    service_account_config()
 
     {:ok, _} = Catalog.create_teacher(%{name: "Tristan", email: "t@example.com", active: true})
     {:ok, _} = Catalog.create_instrument(%{name: "Piano", slug: "piano", active: true})
@@ -20,22 +20,12 @@ defmodule MusicStudio.Scheduling.PreviewSeriesTest do
         active: true
       })
 
-    {:ok, _} =
-      Credentials.upsert(%{
-        provider: "google",
-        refresh_token: "rt",
-        access_token: "at",
-        access_token_expires_at: DateTime.add(DateTime.utc_now(), 3600, :second),
-        availability_calendar_id: "c",
-        target_calendar_id: "c"
-      })
-
     :ok
   end
 
   test "projects weekly occurrences to June 30 and marks the open ones bookable" do
     # Availability calendar: for each day it queries, return a 15:00-18:00 PT block for THAT day.
-    Req.Test.stub(GoogleAuth, fn conn ->
+    stub_google(fn conn ->
       conn = Plug.Conn.fetch_query_params(conn)
       day = conn.query_params["timeMin"] |> String.slice(0, 10)
 

@@ -29,17 +29,19 @@ import Config
 #       publishable_key: System.get_env("STRIPE_PUBLISHABLE_KEY"),
 #       webhook_secret: System.get_env("STRIPE_WEBHOOK_SECRET")
 #
-# Scheduling / online booking (local dev). The Google refresh token is NOT set here —
-# it's captured by the one-time connect flow and stored in the DB (scheduling_credentials).
-# Add this block to config/dev.secret.exs:
+# Google Calendar via a SERVICE ACCOUNT (no consent screen, no token expiry). Paste the
+# downloaded service-account JSON key and the shared calendar id into config/dev.secret.exs:
 #
 #     config :music_studio, MusicStudio.Scheduling,
-#       google_client_id: "your-google-oauth-client-id",
-#       google_client_secret: "your-google-oauth-client-secret",
-#       google_redirect_uri: "http://localhost:4000/oauth/google/callback",
-#       setup_token: "choose-a-long-random-string",
-#       notify_from: "no-reply@musicstudio.local",
-#       notify_to: "you@example.com"
+#       service_account_key: %{
+#         "client_email" => "music-studio-booking@your-project.iam.gserviceaccount.com",
+#         "private_key" => "<the PEM private_key string, copied verbatim from the JSON key>",
+#         "token_uri" => "https://oauth2.googleapis.com/token"
+#       },
+#       availability_calendar_id: "…@group.calendar.google.com",
+#       target_calendar_id: "…@group.calendar.google.com"
+#
+# Share that calendar with the service account's client_email ("Make changes to events").
 #
 # Booking email footer links (optional; only set ones render):
 #   website_url: "https://your-studio-site.example",

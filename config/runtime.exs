@@ -83,10 +83,13 @@ if config_env() == :prod do
   # obtained via the one-time connect flow and stored in the DB, not here. Deep-merges
   # with the compile-time Scheduling defaults (timezone, grid, buffer, etc.).
   config :music_studio, MusicStudio.Scheduling,
-    google_client_id: System.get_env("GOOGLE_CLIENT_ID"),
-    google_client_secret: System.get_env("GOOGLE_CLIENT_SECRET"),
-    google_redirect_uri: System.get_env("GOOGLE_REDIRECT_URI"),
-    setup_token: System.get_env("GOOGLE_SETUP_TOKEN"),
+    service_account_key:
+      System.get_env("GOOGLE_SERVICE_ACCOUNT_KEY") &&
+        Jason.decode!(System.get_env("GOOGLE_SERVICE_ACCOUNT_KEY")),
+    availability_calendar_id: System.get_env("GOOGLE_AVAILABILITY_CALENDAR_ID"),
+    target_calendar_id:
+      System.get_env("GOOGLE_TARGET_CALENDAR_ID") ||
+        System.get_env("GOOGLE_AVAILABILITY_CALENDAR_ID"),
     notify_from: System.get_env("BOOKING_FROM_EMAIL") || "no-reply@musicstudio.local",
     notify_to: System.get_env("INQUIRY_TO_EMAIL") || "owner@example.com",
     website_url: System.get_env("WEBSITE_URL"),

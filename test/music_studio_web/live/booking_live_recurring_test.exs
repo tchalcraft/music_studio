@@ -2,14 +2,15 @@ defmodule MusicStudioWeb.BookingLiveRecurringTest do
   use MusicStudioWeb.ConnCase, async: false
   import Phoenix.LiveViewTest
 
+  import MusicStudio.SchedulingStubs
+
   alias MusicStudio.Catalog
-  alias MusicStudio.Scheduling.{Credentials, GoogleAuth, Recurrence}
+  alias MusicStudio.Scheduling.Recurrence
 
   @tz "America/Vancouver"
 
   setup do
-    Application.put_env(:music_studio, :scheduling_req_options, plug: {Req.Test, GoogleAuth})
-    on_exit(fn -> Application.delete_env(:music_studio, :scheduling_req_options) end)
+    service_account_config()
 
     {:ok, _} = Catalog.create_teacher(%{name: "Tristan", email: "t@example.com", active: true})
     {:ok, _} = Catalog.create_instrument(%{name: "Piano", slug: "piano", active: true})
@@ -22,19 +23,9 @@ defmodule MusicStudioWeb.BookingLiveRecurringTest do
         active: true
       })
 
-    {:ok, _} =
-      Credentials.upsert(%{
-        provider: "google",
-        refresh_token: "rt",
-        access_token: "at",
-        access_token_expires_at: DateTime.add(DateTime.utc_now(), 3600, :second),
-        availability_calendar_id: "c",
-        target_calendar_id: "c"
-      })
-
     # Weekday 3–6pm PT blocks across whatever range is queried (so the picker + the
     # term projection both have availability).
-    Req.Test.stub(GoogleAuth, fn conn ->
+    stub_google(fn conn ->
       case conn.method do
         "GET" ->
           conn = Plug.Conn.fetch_query_params(conn)

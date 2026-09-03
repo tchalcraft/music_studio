@@ -1,66 +1,37 @@
 defmodule MusicStudio.Scheduling.GoogleAuthTest do
-  use MusicStudio.DataCase, async: false
+  use ExUnit.Case, async: false
+
+  import MusicStudio.SchedulingStubs
 
   alias MusicStudio.Scheduling.{Credentials, GoogleAuth}
 
   setup do
-    prev = Application.get_env(:music_studio, MusicStudio.Scheduling)
-
-    Application.put_env(
-      :music_studio,
-      MusicStudio.Scheduling,
-      Keyword.merge(prev,
-        google_client_id: "cid",
-        google_client_secret: "secret",
-        google_redirect_uri: "http://localhost/cb"
-      )
-    )
-
-    Application.put_env(:music_studio, :scheduling_req_options, plug: {Req.Test, GoogleAuth})
-
-    on_exit(fn ->
-      Application.put_env(:music_studio, MusicStudio.Scheduling, prev)
-      Application.delete_env(:music_studio, :scheduling_req_options)
-    end)
-
+    service_account_config(availability_calendar_id: "cal-x")
     :ok
   end
 
-  test "authorize_url includes offline access and the configured client id" do
-    url = GoogleAuth.authorize_url("state123")
-    assert url =~ "access_type=offline"
-    assert url =~ "state=state123"
-    assert url =~ "scope="
-    assert url =~ "client_id=cid"
-  end
+  test "mint_access_token signs a JWT, exchanges it, and returns a token" do
+    stub_google(fn conn -> Req.Test.json(conn, %{"items" => []}) end)
 
-  test "exchange_code returns tokens parsed from Google" do
+    # Re-stub just the token endpoint to assert the grant shape.
     Req.Test.stub(GoogleAuth, fn conn ->
-      Req.Test.json(conn, %{
-        "access_token" => "at-1",
-        "refresh_token" => "rt-1",
-        "expires_in" => 3600
-      })
+      {:ok, body, conn} = Plug.Conn.read_body(conn)
+      assert body =~ "grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer"
+      assert body =~ "assertion="
+      Req.Test.json(conn, %{"access_token" => "at-sa", "expires_in" => 3600})
     end)
 
-    assert {:ok, %{access_token: "at-1", refresh_token: "rt-1", expires_at: %DateTime{}}} =
-             GoogleAuth.exchange_code("the-code")
+    assert {:ok, %{access_token: "at-sa", expires_at: %DateTime{}}} =
+             GoogleAuth.mint_access_token()
   end
 
-  test "fresh_access_token refreshes and persists when the cached token is expired" do
-    {:ok, _} =
-      Credentials.upsert(%{
-        provider: "google",
-        refresh_token: "rt-1",
-        access_token: "old",
-        access_token_expires_at: DateTime.add(DateTime.utc_now(), -10, :second)
-      })
+  test "fresh_access_token mints via the service account" do
+    stub_google(fn conn -> Req.Test.json(conn, %{"items" => []}) end)
+    assert {:ok, "at-test"} = Credentials.fresh_access_token()
+  end
 
-    Req.Test.stub(GoogleAuth, fn conn ->
-      Req.Test.json(conn, %{"access_token" => "at-2", "expires_in" => 3600})
-    end)
-
-    assert {:ok, "at-2"} = Credentials.fresh_access_token()
-    assert Credentials.get().access_token == "at-2"
+  test "calendar ids come from config" do
+    assert Credentials.availability_calendar_id() == "cal-x"
+    assert Credentials.configured?()
   end
 end

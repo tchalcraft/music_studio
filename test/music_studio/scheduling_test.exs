@@ -1,14 +1,13 @@
 defmodule MusicStudio.SchedulingTest do
   use MusicStudio.DataCase, async: false
   import Swoosh.TestAssertions
+  import MusicStudio.SchedulingStubs
 
   alias MusicStudio.{Catalog, Teaching}
   alias MusicStudio.Scheduling
-  alias MusicStudio.Scheduling.{Credentials, GoogleAuth}
 
   setup do
-    Application.put_env(:music_studio, :scheduling_req_options, plug: {Req.Test, GoogleAuth})
-    on_exit(fn -> Application.delete_env(:music_studio, :scheduling_req_options) end)
+    service_account_config()
 
     {:ok, _teacher} =
       Catalog.create_teacher(%{name: "Tristan", email: "t@example.com", active: true})
@@ -24,21 +23,11 @@ defmodule MusicStudio.SchedulingTest do
         active: true
       })
 
-    {:ok, _} =
-      Credentials.upsert(%{
-        provider: "google",
-        refresh_token: "rt",
-        access_token: "at",
-        access_token_expires_at: DateTime.add(DateTime.utc_now(), 3600, :second),
-        availability_calendar_id: "avail-cal",
-        target_calendar_id: "avail-cal"
-      })
-
     :ok
   end
 
   test "create_booking creates a student + scheduled lesson, event, and emails" do
-    Req.Test.stub(GoogleAuth, fn conn -> Req.Test.json(conn, %{"id" => "evt-1"}) end)
+    stub_google(fn conn -> Req.Test.json(conn, %{"id" => "evt-1"}) end)
 
     starts = DateTime.new!(~D[2026-09-10], ~T[22:00:00], "Etc/UTC")
 
@@ -60,7 +49,7 @@ defmodule MusicStudio.SchedulingTest do
   end
 
   test "a second booking for the same slot is rejected" do
-    Req.Test.stub(GoogleAuth, fn conn -> Req.Test.json(conn, %{"id" => "evt-1"}) end)
+    stub_google(fn conn -> Req.Test.json(conn, %{"id" => "evt-1"}) end)
     starts = DateTime.new!(~D[2026-09-10], ~T[22:00:00], "Etc/UTC")
 
     attrs = %{
@@ -77,7 +66,7 @@ defmodule MusicStudio.SchedulingTest do
   end
 
   test "cancelling a booking emails the visitor" do
-    Req.Test.stub(GoogleAuth, fn conn -> Req.Test.json(conn, %{"id" => "evt-1"}) end)
+    stub_google(fn conn -> Req.Test.json(conn, %{"id" => "evt-1"}) end)
 
     starts = DateTime.new!(~D[2026-09-10], ~T[22:00:00], "Etc/UTC")
 

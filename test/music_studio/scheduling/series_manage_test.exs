@@ -1,13 +1,13 @@
 defmodule MusicStudio.Scheduling.SeriesManageTest do
   use MusicStudio.DataCase, async: false
 
+  import MusicStudio.SchedulingStubs
+
   alias MusicStudio.Catalog
   alias MusicStudio.Scheduling
-  alias MusicStudio.Scheduling.{Credentials, GoogleAuth}
 
   setup do
-    Application.put_env(:music_studio, :scheduling_req_options, plug: {Req.Test, GoogleAuth})
-    on_exit(fn -> Application.delete_env(:music_studio, :scheduling_req_options) end)
+    service_account_config()
 
     {:ok, _} = Catalog.create_teacher(%{name: "T", email: "t@example.com", active: true})
     {:ok, _} = Catalog.create_instrument(%{name: "Piano", slug: "piano", active: true})
@@ -20,17 +20,7 @@ defmodule MusicStudio.Scheduling.SeriesManageTest do
         active: true
       })
 
-    {:ok, _} =
-      Credentials.upsert(%{
-        provider: "google",
-        refresh_token: "rt",
-        access_token: "at",
-        access_token_expires_at: DateTime.add(DateTime.utc_now(), 3600, :second),
-        availability_calendar_id: "c",
-        target_calendar_id: "c"
-      })
-
-    Req.Test.stub(GoogleAuth, fn conn ->
+    stub_google(fn conn ->
       case conn.method do
         "GET" ->
           conn = Plug.Conn.fetch_query_params(conn)

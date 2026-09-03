@@ -1,14 +1,14 @@
 defmodule MusicStudio.Scheduling.HeldSlotsTest do
   use MusicStudio.DataCase, async: false
 
+  import MusicStudio.SchedulingStubs
+
   alias MusicStudio.{Catalog, Repo, Teaching}
   alias MusicStudio.Scheduling
-  alias MusicStudio.Scheduling.{Credentials, GoogleAuth}
   alias MusicStudio.Teaching.Enrollment
 
   setup do
-    Application.put_env(:music_studio, :scheduling_req_options, plug: {Req.Test, GoogleAuth})
-    on_exit(fn -> Application.delete_env(:music_studio, :scheduling_req_options) end)
+    service_account_config()
 
     {:ok, teacher} =
       Catalog.create_teacher(%{name: "Tristan", email: "t@example.com", active: true})
@@ -24,16 +24,6 @@ defmodule MusicStudio.Scheduling.HeldSlotsTest do
       })
 
     {:ok, student} = Teaching.create_student(%{first_name: "S", status: "prospective"})
-
-    {:ok, _} =
-      Credentials.upsert(%{
-        provider: "google",
-        refresh_token: "rt",
-        access_token: "at",
-        access_token_expires_at: DateTime.add(DateTime.utc_now(), 3600, :second),
-        availability_calendar_id: "c",
-        target_calendar_id: "c"
-      })
 
     # A paused series: Tuesdays 16:00 PT, holding the slot for the whole term.
     {:ok, _enr} =
@@ -60,7 +50,7 @@ defmodule MusicStudio.Scheduling.HeldSlotsTest do
 
   test "a paused series' recurring time is withheld from availability" do
     # Availability calendar wide open on Tue Sep 15 2026, 15:00-18:00 PT.
-    Req.Test.stub(GoogleAuth, fn conn ->
+    stub_google(fn conn ->
       Req.Test.json(conn, %{
         "items" => [
           %{

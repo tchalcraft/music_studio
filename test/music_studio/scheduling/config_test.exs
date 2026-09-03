@@ -12,4 +12,12 @@ defmodule MusicStudio.Scheduling.ConfigTest do
   test "the Pacific time zone resolves (tzdata wired)" do
     assert {:ok, %DateTime{}} = DateTime.now("America/Vancouver")
   end
+
+  test "scheduling config exposes the service-account keys" do
+    cfg = Application.get_env(:music_studio, MusicStudio.Scheduling)
+    assert Keyword.has_key?(cfg, :service_account_key)
+    assert Keyword.has_key?(cfg, :availability_calendar_id)
+    assert Keyword.has_key?(cfg, :target_calendar_id)
+    assert cfg[:google_token_url] == "https://oauth2.googleapis.com/token"
+  end
 end

@@ -23,7 +23,8 @@ defmodule MusicStudio.Scheduling do
         from: from_date,
         to: to_date
       }) do
-    with %{availability_calendar_id: cal} when is_binary(cal) <- Credentials.get(),
+    with true <- Credentials.configured?() || {:error, :not_connected},
+         cal <- Credentials.availability_calendar_id(),
          time_min <- DateTime.new!(from_date, ~T[00:00:00], "Etc/UTC"),
          time_max <- DateTime.new!(to_date, ~T[23:59:59], "Etc/UTC"),
          {:ok, blocks} <- GoogleCalendar.list_events(cal, time_min, time_max) do
@@ -40,8 +41,6 @@ defmodule MusicStudio.Scheduling do
 
       {:ok, slots}
     else
-      nil -> {:error, :not_connected}
-      %{} -> {:error, :not_connected}
       {:error, reason} -> {:error, reason}
     end
   end
@@ -639,7 +638,7 @@ defmodule MusicStudio.Scheduling do
       {:error, e}
   end
 
-  defp target_calendar, do: Credentials.get().target_calendar_id
+  defp target_calendar, do: Credentials.target_calendar_id()
 
   defp lesson_email_details(lesson) do
     %{
