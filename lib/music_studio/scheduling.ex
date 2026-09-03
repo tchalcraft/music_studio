@@ -391,6 +391,29 @@ defmodule MusicStudio.Scheduling do
     end
   end
 
+  @pause_max 4
+
+  @spec pause_series(String.t(), Date.t()) :: {:ok, map()} | {:error, term()}
+  def pause_series(series_token, from_date) do
+    case get_series_by_token(series_token) do
+      nil ->
+        {:error, :not_found}
+
+      enrollment ->
+        skipped =
+          enrollment
+          |> list_series_lessons()
+          |> Enum.filter(&(Date.compare(DateTime.to_date(&1.scheduled_start), from_date) != :lt))
+          |> Enum.take(@pause_max)
+          |> Enum.map(fn lesson ->
+            {:ok, l} = cancel_lesson_record(lesson)
+            l
+          end)
+
+        {:ok, %{skipped: skipped}}
+    end
+  end
+
   defp do_cancel_series(enrollment) do
     Enum.each(list_series_lessons(enrollment), &cancel_lesson_record/1)
 

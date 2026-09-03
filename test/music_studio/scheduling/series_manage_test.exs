@@ -83,4 +83,15 @@ defmodule MusicStudio.Scheduling.SeriesManageTest do
     assert cancelled.status == :cancelled
     assert Enum.empty?(Scheduling.list_series_lessons(cancelled))
   end
+
+  test "pause skips up to 4 consecutive occurrences and holds the slot", %{
+    series: %{enrollment: enr}
+  } do
+    from = enr.started_on
+    assert {:ok, %{skipped: skipped}} = Scheduling.pause_series(enr.booking_token, from)
+    assert length(skipped) <= 4
+    assert Enum.all?(skipped, &(&1.status == :cancelled))
+    # enrollment still active -> slot still held
+    assert Scheduling.get_series_by_token(enr.booking_token).status == :active
+  end
 end
