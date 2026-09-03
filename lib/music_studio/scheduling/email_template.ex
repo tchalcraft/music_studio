@@ -75,7 +75,13 @@ defmodule MusicStudio.Scheduling.EmailTemplate do
   end
 
   @spec google_calendar_url(map()) :: binary()
-  def google_calendar_url(%{title: title, details: details, location: location, starts_at: s, ends_at: e}) do
+  def google_calendar_url(%{
+        title: title,
+        details: details,
+        location: location,
+        starts_at: s,
+        ends_at: e
+      }) do
     query =
       URI.encode_query(%{
         "action" => "TEMPLATE",

@@ -20,7 +20,8 @@ defmodule MusicStudio.Scheduling.Notifier do
     gcal =
       EmailTemplate.google_calendar_url(%{
         title: "#{String.capitalize(details.instrument)} lesson",
-        details: "#{details.duration_minutes}-minute #{details.instrument} lesson. Manage: #{details.manage_url}",
+        details:
+          "#{details.duration_minutes}-minute #{details.instrument} lesson. Manage: #{details.manage_url}",
         location: "Studio",
         starts_at: details.starts_at,
         ends_at: details.ends_at
@@ -75,7 +76,9 @@ defmodule MusicStudio.Scheduling.Notifier do
     opts = [
       title: "Your lesson is cancelled",
       greeting: "Hi #{details.visitor_name},",
-      paragraphs: ["Your #{details.instrument} lesson on #{when_str} has been cancelled. Hope to see you again soon — you can book any time."],
+      paragraphs: [
+        "Your #{details.instrument} lesson on #{when_str} has been cancelled. Hope to see you again soon — you can book any time."
+      ],
       details: [{"Was", when_str}],
       cta: nil
     ]
