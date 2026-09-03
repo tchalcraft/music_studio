@@ -28,6 +28,14 @@ config :music_studio, MusicStudioWeb.Endpoint,
 # In test we don't send emails
 config :music_studio, MusicStudio.Mailer, adapter: Swoosh.Adapters.Test
 
+# Stripe: dummy credentials so the client is "configured", and route all HTTP through a
+# Req.Test stub instead of the network (tests set up the stub per case).
+config :music_studio, :stripe,
+  secret_key: "sk_test_dummy",
+  publishable_key: "pk_test_dummy",
+  webhook_secret: "whsec_test_dummy",
+  req_plug: {Req.Test, MusicStudio.Billing.Stripe}
+
 # Disable swoosh api client as it is only required for production adapters
 config :swoosh, :api_client, false
 

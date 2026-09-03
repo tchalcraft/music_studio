@@ -15,6 +15,7 @@ defmodule MusicStudio.Billing.Invoice do
     field :issued_on, :date
     field :due_on, :date
     field :subtotal_cents, :integer, default: 0
+    field :tax_cents, :integer, default: 0
     field :total_cents, :integer, default: 0
     field :currency, :string, default: "CAD"
     field :deleted_at, :utc_datetime_usec
@@ -38,6 +39,7 @@ defmodule MusicStudio.Billing.Invoice do
       :issued_on,
       :due_on,
       :subtotal_cents,
+      :tax_cents,
       :total_cents,
       :currency,
       :deleted_at,
@@ -46,6 +48,7 @@ defmodule MusicStudio.Billing.Invoice do
     ])
     |> validate_required([:status, :currency])
     |> validate_number(:subtotal_cents, greater_than_or_equal_to: 0)
+    |> validate_number(:tax_cents, greater_than_or_equal_to: 0)
     |> validate_number(:total_cents, greater_than_or_equal_to: 0)
     |> assoc_constraint(:guardian)
     |> assoc_constraint(:student)

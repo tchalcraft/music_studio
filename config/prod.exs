@@ -20,6 +20,15 @@ config :music_studio, MusicStudioWeb.Endpoint,
     ]
   ]
 
+# Beacon compiles CMS page JS/CSS at RUNTIME via esbuild + tailwind (Beacon.RuntimeJS /
+# BeaconRuntimeCSS), so those binaries must exist in the release image. Pin them to a
+# fixed absolute path: by default the esbuild/tailwind packages derive the path from
+# Mix.Project.build_path(), which is unavailable in a release and makes Beacon raise
+# "esbuild binary not found" at boot. The Dockerfile installs the binaries here at build
+# time and copies them into the runner stage at the same path.
+config :esbuild, path: "/app/bin/esbuild"
+config :tailwind, path: "/app/bin/tailwind"
+
 # Configure Swoosh API Client
 config :swoosh, api_client: Swoosh.ApiClient.Req
 

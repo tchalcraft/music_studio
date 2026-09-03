@@ -8,6 +8,7 @@ defmodule MusicStudio.Leads.Notifier do
   `config/dev.secret.exs`. Never hard-code a real address here.
   """
   import Swoosh.Email
+  require Logger
 
   alias MusicStudio.Leads.Lead
   alias MusicStudio.Mailer
@@ -15,7 +16,12 @@ defmodule MusicStudio.Leads.Notifier do
   @doc """
   Builds and delivers the inquiry-notification email for `lead`.
 
-  Returns `{:ok, email}` on success or `{:error, reason}` from the mailer.
+  Delivery is best-effort and NEVER raises: a failing or misconfigured mailer (e.g. the
+  provider rejecting the From address) returns `{:error, reason}` and is logged, rather
+  than crashing the caller. The lead is already persisted by the time this is called, so
+  the visitor should still see a confirmation regardless of the email outcome.
+
+  Returns `{:ok, email}` on success or `{:error, reason}` otherwise.
   """
   def deliver_inquiry_notification(%Lead{} = lead) do
     config = Application.get_env(:music_studio, MusicStudio.Leads, [])
@@ -30,9 +36,25 @@ defmodule MusicStudio.Leads.Notifier do
       |> subject("New lesson inquiry from #{lead.name}")
       |> text_body(body(lead))
 
-    with {:ok, _metadata} <- Mailer.deliver(email) do
-      {:ok, email}
+    case Mailer.deliver(email) do
+      {:ok, _metadata} ->
+        {:ok, email}
+
+      {:error, reason} ->
+        Logger.error(
+          "Inquiry notification delivery failed for lead #{lead.id}: #{inspect(reason)}"
+        )
+
+        {:error, reason}
     end
+  rescue
+    exception ->
+      Logger.error(
+        "Inquiry notification delivery crashed for lead #{lead.id}: " <>
+          Exception.message(exception)
+      )
+
+      {:error, {:exception, exception}}
   end
 
   defp body(%Lead{} = lead) do

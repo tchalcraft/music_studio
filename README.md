@@ -63,24 +63,25 @@ export `DATABASE_URL` yourself or add `.envrc` to `.worktreeinclude`.
 
 ## Online booking
 
-Visitors book lessons at **`/book`**: pick an instrument + duration, choose an open
-time, and the slot is booked instantly. Availability comes from a dedicated Google
-"Availability" calendar (open blocks minus already-booked lessons, on a 30-min grid,
-respecting a buffer and a 24 h minimum notice, in `America/Vancouver`). A booking
-creates a `Lesson` (as a prospective `Student`), writes a Google Calendar event, and
-sends a Resend confirmation with a `.ics` attachment plus a notification to the teacher.
-Visitors cancel via `/book/manage/:token`. Lessons carry a price so they can be invoiced
-monthly (Stripe) later — no payment at booking. A Postgres exclusion constraint makes
+Visitors book lessons at **`/book`**: pick an instrument + length (voice/piano/guitar;
+30/45/60 min) as boxes, choose an open time, and it's booked instantly. Availability is
+**app-defined working hours** — Monday–Friday 2:00–9:00 PM (`America/Vancouver`) minus
+already-booked lessons, on a 30-min grid, with a buffer and a 24 h minimum notice; lessons
+must end by 9 PM. Single lessons use a month calendar; **recurring** weekly / every-other-week
+series run the school year (through Jun 30) with skip and month-long pause (the time stays
+held), managed via `/book/manage/:token`. A booking creates a `Lesson` (as a prospective
+`Student`), sends a branded Resend confirmation with a `.ics` attachment (+ a teacher
+notification), and writes the lesson to Google Calendar. Lessons carry a price so they can be
+invoiced monthly (Stripe) later — no payment at booking. A Postgres exclusion constraint makes
 double-booking impossible.
 
-**Required env** (prod via `config/runtime.exs`; local via `config/dev.secret.exs`):
-`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`, `GOOGLE_SETUP_TOKEN`,
-`RESEND_API_KEY`. Tunables live under `config :music_studio, MusicStudio.Scheduling`
-(timezone, `slot_grid_minutes`, `buffer_minutes`, `min_notice_minutes`).
-
-**One-time Google connect:** visit `/admin/google/connect?token=$GOOGLE_SETUP_TOKEN`,
-grant Calendar access, then set the availability + target calendar ids on the stored
-`scheduling_credentials` row. The refresh token is captured and stored in the DB.
+**Google Calendar** uses a **service account** (no OAuth/consent flow): share the target
+calendar with the service account's email, then set `GOOGLE_SERVICE_ACCOUNT_KEY` (the JSON
+key) and `GOOGLE_AVAILABILITY_CALENDAR_ID`. Both are optional — without them the app still
+runs (availability + booking work); it just won't write events to the calendar. Booking email
+uses `RESEND_API_KEY`. Tunables live under `config :music_studio, MusicStudio.Scheduling`
+(`studio_timezone`, `working_days`, `working_start`/`working_end`, `slot_grid_minutes`,
+`buffer_minutes`, `min_notice_minutes`).
 
 ## AI coding agents
 
@@ -88,7 +89,33 @@ Framework guidance is split into skills under `.claude/skills/` (mirrored to
 `.agents/skills/`), each loading by trigger. See `AGENTS.md` for the project overview,
 stack, and commands.
 
-Ready to run in production? Please [check our deployment guides](https://phoenix.hexdocs.pm/deployment.html).
+## Deploying
+
+**Live at [tristanchalcraftmusic.com](https://tristanchalcraftmusic.com).** Production runs
+as an OTP release in a Docker container on **Render's free tier**, in front of the **Neon**
+`production` branch, with **Resend** for email. DNS is on **Porkbun** and points straight at
+Render (Render issues the TLS cert) — no CDN layer in front for now.
+
+- **`Dockerfile`** — multi-stage OTP release on **Debian bookworm**, pinned to the dev
+  toolchain (Elixir 1.18.4 / OTP 28) because this Phoenix 1.7 + Beacon stack is
+  version-sensitive. It compiles the app *before* assets (LiveView colocated hooks), ships
+  the esbuild/tailwind binaries into the runner (Beacon compiles page JS/CSS at runtime),
+  and runs migrations then boots the server (`CMD` → `bin/migrate && bin/server`).
+- **`render.yaml`** — Render Blueprint: one `plan: free` Docker web service, built from this
+  repo's `main`.
+- **Env vars** (set in Render, never committed): `PHX_SERVER=true`, `DATABASE_URL` (Neon
+  pooled URL), `SECRET_KEY_BASE` (`mix phx.gen.secret`), `PHX_HOST`, `POOL_SIZE=5`,
+  `RESEND_API_KEY`, `INQUIRY_TO_EMAIL` / `INQUIRY_FROM_EMAIL`, and `STRIPE_SECRET_KEY`.
+  `config/runtime.exs` reads these and applies Neon's SSL + `prepare: :unnamed` (PgBouncer
+  transaction mode), a `check_origin` allow-list, and the Resend mailer.
+- **Beacon boot:** `page_warming: :none` so pages compile lazily on first request rather
+  than blocking boot (the free tier's CPU can't warm them within Beacon's timeout).
+- **Free-tier notes:** the service sleeps after ~15 min idle (slow first request); the DB
+  stays on Neon free (not Render Postgres). Media currently lives as Postgres BLOBs — offload
+  to object storage (e.g. Cloudflare R2) later if Neon storage gets tight.
+
+Full deployment/DNS/TLS runbook: `../docs/architecture.md` (Deployment section) and
+`../checkpoint.md`. General Phoenix deploy docs: https://phoenix.hexdocs.pm/deployment.html.
 
 ## Learn more
 

@@ -79,13 +79,14 @@ if config_env() == :prod do
       api_key: resend_key
   end
 
-  # Google Calendar OAuth (booking availability + event writes). The refresh token is
-  # obtained via the one-time connect flow and stored in the DB, not here. Deep-merges
-  # with the compile-time Scheduling defaults (timezone, grid, buffer, etc.).
+  # Google Calendar service account (writes booked lessons to the calendar; availability
+  # is app-defined working hours, so it isn't read from Google). Both vars are optional —
+  # missing ones leave the app fully functional, just without writing calendar events.
+  # `:json` (OTP built-in) decodes at boot without depending on Jason being loaded.
   config :music_studio, MusicStudio.Scheduling,
     service_account_key:
       System.get_env("GOOGLE_SERVICE_ACCOUNT_KEY") &&
-        Jason.decode!(System.get_env("GOOGLE_SERVICE_ACCOUNT_KEY")),
+        :json.decode(System.get_env("GOOGLE_SERVICE_ACCOUNT_KEY")),
     availability_calendar_id: System.get_env("GOOGLE_AVAILABILITY_CALENDAR_ID"),
     target_calendar_id:
       System.get_env("GOOGLE_TARGET_CALENDAR_ID") ||
@@ -100,8 +101,14 @@ if config_env() == :prod do
     ]
 
   config :music_studio, MusicStudio.Repo,
-    # ssl: true,
-    url: database_url,
+    # Drop any libpq query params (e.g. ?sslmode=require&channel_binding=require) that
+    # Postgrex doesn't accept; SSL is configured explicitly below. Mirrors config/dev.exs.
+    url: database_url |> String.split("?") |> hd(),
+    ssl: [verify: :verify_none],
+    # Neon's pooled endpoint runs PgBouncer in transaction mode, which is incompatible
+    # with named prepared statements — use unnamed ones to avoid "prepared statement
+    # already exists" errors.
+    prepare: :unnamed,
     pool_size: String.to_integer(System.get_env("POOL_SIZE") || "10"),
     # For machines with several cores, consider starting multiple pools of `pool_size`
     # pool_count: 4,
@@ -131,6 +138,13 @@ if config_env() == :prod do
       # See the documentation on https://bandit.hexdocs.pm/Bandit.html#t:options/0
       # for details about using IPv6 vs IPv4 and loopback vs public addresses.
       ip: {0, 0, 0, 0, 0, 0, 0, 0}
+    ],
+    # LiveView runs behind a reverse proxy (Render, and Cloudflare in front), so the
+    # websocket Origin must be checked against the public host(s) rather than the
+    # internal one. Derived from PHX_HOST — apex + www, https only.
+    check_origin: [
+      "https://#{host}",
+      "https://www.#{host}"
     ],
     secret_key_base: secret_key_base
 
@@ -166,21 +180,14 @@ if config_env() == :prod do
   #
   # Check `Plug.SSL` for all available options in `force_ssl`.
 
-  # ## Configuring the mailer
-  #
-  # In production you need to configure the mailer to use a different adapter.
-  # Here is an example configuration for Mailgun:
-  #
-  #     config :music_studio, MusicStudio.Mailer,
-  #       adapter: Swoosh.Adapters.Mailgun,
-  #       api_key: System.get_env("MAILGUN_API_KEY"),
-  #       domain: System.get_env("MAILGUN_DOMAIN")
-  #
-  # Most non-SMTP adapters require an API client. Swoosh supports Req, Hackney,
-  # and Finch out-of-the-box. This configuration is typically done at
-  # compile-time in your config/prod.exs:
-  #
-  #     config :swoosh, :api_client, Swoosh.ApiClient.Req
-  #
-  # See https://swoosh.hexdocs.pm/Swoosh.html#module-installation for details.
+  # Mailer: send inquiry notifications via Resend in production. Only override the
+  # compile-time Local adapter (config/config.exs) when RESEND_API_KEY is set, so a deploy
+  # without the key degrades gracefully — leads still persist, no email goes out — instead
+  # of crashing boot. The API client (Swoosh.ApiClient.Req) is set in config/prod.exs.
+  # The From address (INQUIRY_FROM_EMAIL) must be on a Resend-verified domain.
+  if resend_api_key = System.get_env("RESEND_API_KEY") do
+    config :music_studio, MusicStudio.Mailer,
+      adapter: Swoosh.Adapters.Resend,
+      api_key: resend_api_key
+  end
 end

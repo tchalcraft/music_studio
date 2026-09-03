@@ -31,14 +31,23 @@ defmodule MusicStudioWeb.Router do
     pipe_through :browser
 
     live "/", HomeLive
+
     live "/book", BookingLive
     live "/book/manage/:token", BookingManageLive
+
+    # Pay an invoice via Stripe Checkout. The id is an unguessable UUIDv7 (no auth yet).
+    live "/invoices/:id/pay", InvoicePayLive, :show
+    live "/invoices/:id/pay/success", InvoicePayLive, :success
+    live "/invoices/:id/pay/cancel", InvoicePayLive, :cancel
   end
 
-  # Other scopes may use custom stacks.
-  # scope "/api", MusicStudioWeb do
-  #   pipe_through :api
-  # end
+  # Stripe webhooks. No CSRF/session (the :api pipeline), signature-verified in the
+  # controller. Declared before the Beacon site catch-all so it isn't shadowed.
+  scope "/webhooks", MusicStudioWeb do
+    pipe_through :api
+
+    post "/stripe", StripeWebhookController, :handle
+  end
 
   # Enable LiveDashboard and Swoosh mailbox preview in development.
   # Declared before the Beacon site catch-all so they aren't shadowed.
