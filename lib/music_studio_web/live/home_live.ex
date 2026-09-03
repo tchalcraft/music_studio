@@ -37,6 +37,8 @@ defmodule MusicStudioWeb.HomeLive do
   def handle_event("submit", %{"lead" => params}, socket) do
     case Leads.create_lead(params) do
       {:ok, lead} ->
+        # Best-effort notification. The lead is already saved, so always confirm to the
+        # visitor even if the email fails — Notifier never raises and logs its own errors.
         _ = Notifier.deliver_inquiry_notification(lead)
 
         {:noreply,
