@@ -128,4 +128,81 @@ defmodule MusicStudioWeb.BookingLiveTest do
     assert html =~ ~s(class="ms-stepbar")
     assert html =~ "ms-step"
   end
+
+  # A near-future day (clears 24h notice, within the 2-month window) gets a 3–6pm PT block.
+  defp stub_on_day(date) do
+    d = Date.to_iso8601(date)
+
+    Req.Test.stub(GoogleAuth, fn conn ->
+      case conn.method do
+        "GET" ->
+          Req.Test.json(conn, %{
+            "items" => [
+              %{
+                "start" => %{"dateTime" => d <> "T15:00:00-07:00"},
+                "end" => %{"dateTime" => d <> "T18:00:00-07:00"}
+              }
+            ]
+          })
+
+        _ ->
+          Req.Test.json(conn, %{"id" => "evt"})
+      end
+    end)
+  end
+
+  test "single booking shows a month calendar grid for the available month", %{conn: conn} do
+    target = Date.add(Date.utc_today(), 10)
+    stub_on_day(target)
+    {:ok, view, _} = live(conn, "/book")
+
+    html =
+      render_change(view, "choose", %{"instrument_slug" => "piano", "duration_minutes" => "60"})
+
+    assert html =~ Calendar.strftime(target, "%B %Y")
+    assert html =~ "Su"
+
+    assert has_element?(
+             view,
+             ~s(button[phx-click="pick_day"][phx-value-date="#{Date.to_iso8601(target)}"])
+           )
+  end
+
+  test "clicking an available day reveals that day's times", %{conn: conn} do
+    target = Date.add(Date.utc_today(), 10)
+    stub_on_day(target)
+    {:ok, view, _} = live(conn, "/book")
+    render_change(view, "choose", %{"instrument_slug" => "piano", "duration_minutes" => "60"})
+
+    html = render_click(view, "pick_day", %{"date" => Date.to_iso8601(target)})
+
+    assert html =~ Calendar.strftime(target, "%A, %b")
+    assert has_element?(view, ~s(button[phx-click="pick_slot"]))
+  end
+
+  test "recurring cadence shows a one-week day-by-day view", %{conn: conn} do
+    target = Date.add(Date.utc_today(), 10)
+    stub_on_day(target)
+    {:ok, view, _} = live(conn, "/book")
+    render_change(view, "choose", %{"instrument_slug" => "piano", "duration_minutes" => "60"})
+
+    html = render_change(view, "set_cadence", %{"cadence" => "weekly"})
+
+    assert html =~ "usual day"
+    assert html =~ Calendar.strftime(target, "%A, %b")
+  end
+
+  test "the month can be navigated with next/prev", %{conn: conn} do
+    target = Date.add(Date.utc_today(), 10)
+    stub_on_day(target)
+    {:ok, view, _} = live(conn, "/book")
+    render_change(view, "choose", %{"instrument_slug" => "piano", "duration_minutes" => "60"})
+
+    next = Date.add(Date.beginning_of_month(target), 40) |> Date.beginning_of_month()
+    html = render_click(view, "next_month", %{})
+    assert html =~ Calendar.strftime(next, "%B %Y")
+
+    html = render_click(view, "prev_month", %{})
+    assert html =~ Calendar.strftime(target, "%B %Y")
+  end
 end

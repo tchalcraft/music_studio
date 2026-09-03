@@ -29,8 +29,11 @@ defmodule MusicStudioWeb.BookingLive do
      |> assign(:instrument_slug, nil)
      |> assign(:duration_minutes, nil)
      |> assign(:slots, [])
+     |> assign(:slots_by_day, %{})
      |> assign(:slots_error, nil)
      |> assign(:selected_slot, nil)
+     |> assign(:selected_day, nil)
+     |> assign(:cal_month, nil)
      |> assign(:cadence, "once")
      |> assign(:series_preview, nil)
      |> assign(:booked, nil)
@@ -42,21 +45,43 @@ defmodule MusicStudioWeb.BookingLive do
   def handle_event("choose", %{"instrument_slug" => slug, "duration_minutes" => dur}, socket)
       when slug != "" and dur != "" do
     duration = String.to_integer(dur)
-    today = DateTime.utc_now() |> DateTime.shift_zone!(studio_tz()) |> DateTime.to_date()
+    today = today_local()
 
-    socket = assign(socket, instrument_slug: slug, duration_minutes: duration, selected_slot: nil)
+    socket =
+      assign(socket,
+        instrument_slug: slug,
+        duration_minutes: duration,
+        selected_slot: nil,
+        selected_day: nil
+      )
 
     case Scheduling.list_available_slots(%{
            instrument_slug: slug,
            duration_minutes: duration,
            from: today,
-           to: Date.add(today, 28)
+           # Single bookings only look two months out — nobody books further than that.
+           to: Date.add(today, 62)
          }) do
       {:ok, slots} ->
-        {:noreply, assign(socket, slots: slots, slots_error: nil, step: :schedule)}
+        by_day = slots_by_day(slots)
+
+        {:noreply,
+         assign(socket,
+           slots: slots,
+           slots_by_day: by_day,
+           cal_month: earliest_month(by_day, today),
+           slots_error: nil,
+           step: :schedule
+         )}
 
       {:error, reason} ->
-        {:noreply, assign(socket, slots: [], slots_error: inspect(reason), step: :schedule)}
+        {:noreply,
+         assign(socket,
+           slots: [],
+           slots_by_day: %{},
+           slots_error: inspect(reason),
+           step: :schedule
+         )}
     end
   end
 
@@ -72,7 +97,19 @@ defmodule MusicStudioWeb.BookingLive do
   end
 
   def handle_event("set_cadence", %{"cadence" => cadence}, socket) do
-    {:noreply, socket |> assign(:cadence, cadence) |> maybe_preview()}
+    {:noreply, socket |> assign(cadence: cadence, selected_day: nil) |> maybe_preview()}
+  end
+
+  def handle_event("pick_day", %{"date" => date}, socket) do
+    {:noreply, assign(socket, :selected_day, Date.from_iso8601!(date))}
+  end
+
+  def handle_event("prev_month", _params, socket) do
+    {:noreply, shift_month(socket, -1)}
+  end
+
+  def handle_event("next_month", _params, socket) do
+    {:noreply, shift_month(socket, 1)}
   end
 
   def handle_event("pick_slot", %{"start" => iso}, socket) do
@@ -244,19 +281,106 @@ defmodule MusicStudioWeb.BookingLive do
         </form>
 
         <p :if={!@slots_error and @slots == []} class="mt-4 text-sm text-gray-500">
-          No open times in the next few weeks. Please check back soon.
+          No open times in the next couple of months. Please check back soon.
         </p>
 
-        <div class="mt-3 flex flex-wrap gap-2">
-          <button
-            :for={slot <- @slots}
-            type="button"
-            phx-click="pick_slot"
-            phx-value-start={DateTime.to_iso8601(slot.starts_at)}
-            class="rounded border px-3 py-1 hover:border-indigo-600"
+        <%!-- SINGLE: a month calendar grid — pick a day, then a time. --%>
+        <div :if={@cadence == "once" and @cal_month} class="mt-4">
+          <div class="flex items-center justify-between">
+            <button
+              type="button"
+              phx-click="prev_month"
+              disabled={!prev_month?(@cal_month)}
+              class="rounded px-2 py-1 text-indigo-700 disabled:text-gray-300"
+              aria-label="Previous month"
+            >
+              ◀
+            </button>
+            <span class="font-medium">{Calendar.strftime(@cal_month, "%B %Y")}</span>
+            <button
+              type="button"
+              phx-click="next_month"
+              disabled={!next_month?(@cal_month)}
+              class="rounded px-2 py-1 text-indigo-700 disabled:text-gray-300"
+              aria-label="Next month"
+            >
+              ▶
+            </button>
+          </div>
+
+          <div class="mt-3 grid grid-cols-7 gap-1 text-center text-xs text-gray-500">
+            <div :for={label <- ~w(Su Mo Tu We Th Fr Sa)}>{label}</div>
+          </div>
+
+          <div
+            :for={week <- calendar_weeks(@cal_month)}
+            class="grid grid-cols-7 gap-1 text-center text-sm"
           >
-            {slot_label(slot.starts_at)}
-          </button>
+            <div :for={day <- week} class="py-0.5">
+              <button
+                :if={day_available?(day, @cal_month, @slots_by_day)}
+                type="button"
+                phx-click="pick_day"
+                phx-value-date={Date.to_iso8601(day)}
+                class={[
+                  "w-full rounded py-1",
+                  (@selected_day == day && "bg-indigo-600 text-white") ||
+                    "font-semibold text-indigo-700 hover:bg-indigo-50"
+                ]}
+              >
+                {day.day}
+              </button>
+              <span
+                :if={!day_available?(day, @cal_month, @slots_by_day)}
+                class={[
+                  "block py-1",
+                  (day.month == @cal_month.month && "text-gray-400") || "text-gray-300"
+                ]}
+              >
+                {day.day}
+              </span>
+            </div>
+          </div>
+
+          <div :if={@selected_day} class="mt-5">
+            <h3 class="text-sm font-medium">{Calendar.strftime(@selected_day, "%A, %b %-d")}</h3>
+            <div class="mt-2 flex flex-wrap gap-2">
+              <button
+                :for={slot <- day_slots(@selected_day, @slots_by_day)}
+                type="button"
+                phx-click="pick_slot"
+                phx-value-start={DateTime.to_iso8601(slot.starts_at)}
+                class="rounded border px-3 py-1 hover:border-indigo-600"
+              >
+                {time_label(slot.starts_at)}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <%!-- RECURRING: one week — pick the usual day & time, we repeat it through the term. --%>
+        <div :if={@cadence != "once" and @slots != []} class="mt-4">
+          <p class="text-sm text-gray-600">
+            Pick your usual day &amp; time — we'll repeat it {cadence_word(@cadence)} through June 30.
+          </p>
+
+          <div class="mt-3 space-y-3">
+            <div :for={day <- week_days_for(@slots_by_day)}>
+              <h3 class="text-sm font-medium">{Calendar.strftime(day, "%A, %b %-d")}</h3>
+              <div class="mt-1 flex flex-wrap gap-2">
+                <button
+                  :for={slot <- day_slots(day, @slots_by_day)}
+                  type="button"
+                  phx-click="pick_slot"
+                  phx-value-start={DateTime.to_iso8601(slot.starts_at)}
+                  class="rounded border px-3 py-1 hover:border-indigo-600"
+                >
+                  {time_label(slot.starts_at)}
+                </button>
+                <span :if={day_slots(day, @slots_by_day) == []} class="text-sm text-gray-300">—</span>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -334,6 +458,70 @@ defmodule MusicStudioWeb.BookingLive do
   defp parse_duration(v), do: String.to_integer(v)
 
   defp studio_tz, do: Application.get_env(:music_studio, MusicStudio.Scheduling)[:studio_timezone]
+
+  defp today_local,
+    do: DateTime.utc_now() |> DateTime.shift_zone!(studio_tz()) |> DateTime.to_date()
+
+  defp local_date(dt), do: dt |> DateTime.shift_zone!(studio_tz()) |> DateTime.to_date()
+
+  # %{Date => [slot, ...]} keyed by the slot's start date in studio time (slots arrive sorted).
+  defp slots_by_day(slots), do: Enum.group_by(slots, &local_date(&1.starts_at))
+
+  defp day_slots(day, by_day), do: Map.get(by_day, day, [])
+
+  defp day_available?(day, cal_month, by_day),
+    do: day.month == cal_month.month and day_slots(day, by_day) != []
+
+  defp earliest_month(by_day, today) do
+    case Map.keys(by_day) do
+      [] -> Date.beginning_of_month(today)
+      days -> days |> Enum.min(Date) |> Date.beginning_of_month()
+    end
+  end
+
+  # Sunday-first weeks covering the whole displayed month (with adjacent-month padding days).
+  defp calendar_weeks(month) do
+    first = Date.beginning_of_month(month)
+    last = Date.end_of_month(month)
+    grid_start = Date.add(first, -(Date.day_of_week(first, :sunday) - 1))
+    grid_end = Date.add(last, 7 - Date.day_of_week(last, :sunday))
+    grid_start |> Date.range(grid_end) |> Enum.chunk_every(7)
+  end
+
+  # The Sun–Sat week containing the earliest available day (for the recurring picker).
+  defp week_days_for(by_day) when map_size(by_day) == 0, do: []
+
+  defp week_days_for(by_day) do
+    earliest = by_day |> Map.keys() |> Enum.min(Date)
+    start = Date.add(earliest, -(Date.day_of_week(earliest, :sunday) - 1))
+    Enum.map(0..6, &Date.add(start, &1))
+  end
+
+  defp min_month, do: Date.beginning_of_month(today_local())
+  defp max_month, do: Date.beginning_of_month(Date.add(today_local(), 62))
+  defp prev_month?(cal), do: Date.compare(cal, min_month()) == :gt
+  defp next_month?(cal), do: Date.compare(cal, max_month()) == :lt
+
+  defp shift_month(socket, n) do
+    cal = socket.assigns.cal_month || min_month()
+    idx = cal.year * 12 + (cal.month - 1) + n
+    target = Date.new!(div(idx, 12), rem(idx, 12) + 1, 1)
+
+    clamped =
+      cond do
+        Date.compare(target, min_month()) == :lt -> min_month()
+        Date.compare(target, max_month()) == :gt -> max_month()
+        true -> target
+      end
+
+    assign(socket, cal_month: clamped, selected_day: nil)
+  end
+
+  defp cadence_word("biweekly"), do: "every other week"
+  defp cadence_word(_), do: "every week"
+
+  defp time_label(dt),
+    do: dt |> DateTime.shift_zone!(studio_tz()) |> Calendar.strftime("%-I:%M %p")
 
   defp slot_label(dt) do
     dt |> DateTime.shift_zone!(studio_tz()) |> Calendar.strftime("%a %b %-d, %-I:%M %p")
