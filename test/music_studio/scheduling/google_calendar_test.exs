@@ -39,9 +39,7 @@ defmodule MusicStudio.Scheduling.GoogleCalendarTest do
                location: "Studio",
                starts_at: DateTime.utc_now(),
                ends_at: DateTime.add(DateTime.utc_now(), 3600, :second),
-               timezone: "America/Vancouver",
-               attendee_email: "sam@example.com",
-               send_updates: "all"
+               timezone: "America/Vancouver"
              })
   end
 end

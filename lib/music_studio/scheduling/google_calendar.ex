@@ -31,7 +31,7 @@ defmodule MusicStudio.Scheduling.GoogleCalendar do
   @spec insert_event(String.t(), map()) :: {:ok, String.t()} | {:error, term()}
   def insert_event(calendar_id, attrs) do
     with {:ok, token} <- Credentials.fresh_access_token() do
-      params = [sendUpdates: attrs[:send_updates] || "all"]
+      params = [sendUpdates: "none"]
 
       req(token, url: events_url(calendar_id), params: params, json: event_body(attrs))
       |> Req.post()
@@ -42,7 +42,7 @@ defmodule MusicStudio.Scheduling.GoogleCalendar do
   @spec update_event(String.t(), String.t(), map()) :: {:ok, String.t()} | {:error, term()}
   def update_event(calendar_id, event_id, attrs) do
     with {:ok, token} <- Credentials.fresh_access_token() do
-      params = [sendUpdates: attrs[:send_updates] || "all"]
+      params = [sendUpdates: "none"]
 
       req(token, url: event_url(calendar_id, event_id), params: params, json: event_body(attrs))
       |> Req.put()
@@ -50,10 +50,10 @@ defmodule MusicStudio.Scheduling.GoogleCalendar do
     end
   end
 
-  @spec delete_event(String.t(), String.t(), keyword()) :: :ok | {:error, term()}
-  def delete_event(calendar_id, event_id, opts \\ []) do
+  @spec delete_event(String.t(), String.t()) :: :ok | {:error, term()}
+  def delete_event(calendar_id, event_id) do
     with {:ok, token} <- Credentials.fresh_access_token() do
-      params = [sendUpdates: opts[:send_updates] || "all"]
+      params = [sendUpdates: "none"]
 
       case Req.delete(req(token, url: event_url(calendar_id, event_id), params: params)) do
         {:ok, %{status: status}} when status in [200, 204, 410] -> :ok
@@ -69,13 +69,9 @@ defmodule MusicStudio.Scheduling.GoogleCalendar do
       "description" => a.description,
       "location" => a.location,
       "start" => %{"dateTime" => DateTime.to_iso8601(a.starts_at), "timeZone" => a.timezone},
-      "end" => %{"dateTime" => DateTime.to_iso8601(a.ends_at), "timeZone" => a.timezone},
-      "attendees" => attendees(a[:attendee_email])
+      "end" => %{"dateTime" => DateTime.to_iso8601(a.ends_at), "timeZone" => a.timezone}
     }
   end
-
-  defp attendees(nil), do: []
-  defp attendees(email), do: [%{"email" => email}]
 
   defp created_id({:ok, %{status: status, body: %{"id" => id}}}) when status in [200, 201],
     do: {:ok, id}

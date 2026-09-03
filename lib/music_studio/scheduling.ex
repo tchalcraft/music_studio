@@ -471,9 +471,7 @@ defmodule MusicStudio.Scheduling do
       location: "Studio",
       starts_at: lesson.scheduled_start,
       ends_at: ends_at,
-      timezone: cfg(:studio_timezone),
-      attendee_email: enr.contact_email,
-      send_updates: "all"
+      timezone: cfg(:studio_timezone)
     })
   end
 
@@ -515,9 +513,7 @@ defmodule MusicStudio.Scheduling do
       location: "Studio",
       starts_at: lesson.scheduled_start,
       ends_at: ends_at,
-      timezone: cfg(:studio_timezone),
-      attendee_email: params.email,
-      send_updates: "all"
+      timezone: cfg(:studio_timezone)
     })
   end
 
