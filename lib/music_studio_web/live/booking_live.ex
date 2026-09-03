@@ -553,34 +553,27 @@ defmodule MusicStudioWeb.BookingLive do
 
   defp load_and_schedule(socket) do
     today = today_local()
-    socket = assign(socket, selected_slot: nil, selected_day: nil)
 
-    case Scheduling.list_available_slots(%{
-           instrument_slug: socket.assigns.instrument_slug,
-           duration_minutes: socket.assigns.duration_minutes,
-           from: today,
-           # Single bookings only look two months out — nobody books further than that.
-           to: Date.add(today, 62)
-         }) do
-      {:ok, slots} ->
-        by_day = slots_by_day(slots)
+    {:ok, slots} =
+      Scheduling.list_available_slots(%{
+        instrument_slug: socket.assigns.instrument_slug,
+        duration_minutes: socket.assigns.duration_minutes,
+        from: today,
+        # Single bookings only look two months out — nobody books further than that.
+        to: Date.add(today, 62)
+      })
 
-        assign(socket,
-          slots: slots,
-          slots_by_day: by_day,
-          cal_month: earliest_month(by_day, today),
-          slots_error: nil,
-          step: :schedule
-        )
+    by_day = slots_by_day(slots)
 
-      {:error, reason} ->
-        assign(socket,
-          slots: [],
-          slots_by_day: %{},
-          slots_error: inspect(reason),
-          step: :schedule
-        )
-    end
+    assign(socket,
+      slots: slots,
+      slots_by_day: by_day,
+      cal_month: earliest_month(by_day, today),
+      slots_error: nil,
+      selected_slot: nil,
+      selected_day: nil,
+      step: :schedule
+    )
   end
 
   defp local_date(dt), do: dt |> DateTime.shift_zone!(studio_tz()) |> DateTime.to_date()

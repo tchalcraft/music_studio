@@ -106,6 +106,11 @@ config :music_studio, MusicStudio.Scheduling,
   slot_grid_minutes: 30,
   buffer_minutes: 15,
   min_notice_minutes: 24 * 60,
+  # Bookable window (studio-local): Mon–Fri, 2:00 PM–9:00 PM. Lessons must end by
+  # working_end, so nothing runs past 9 PM. Availability = this window minus booked lessons.
+  working_days: [1, 2, 3, 4, 5],
+  working_start: ~T[14:00:00],
+  working_end: ~T[21:00:00],
   google_token_url: "https://oauth2.googleapis.com/token",
   service_account_key: nil,
   availability_calendar_id: nil,

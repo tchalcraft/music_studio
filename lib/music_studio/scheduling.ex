@@ -23,26 +23,41 @@ defmodule MusicStudio.Scheduling do
         from: from_date,
         to: to_date
       }) do
-    with true <- Credentials.configured?() || {:error, :not_connected},
-         cal <- Credentials.availability_calendar_id(),
-         time_min <- DateTime.new!(from_date, ~T[00:00:00], "Etc/UTC"),
-         time_max <- DateTime.new!(to_date, ~T[23:59:59], "Etc/UTC"),
-         {:ok, blocks} <- GoogleCalendar.list_events(cal, time_min, time_max) do
-      slots =
-        Availability.compute(%{
-          blocks: blocks,
-          booked: booked_intervals(time_min, time_max) ++ held_intervals(time_min, time_max),
-          duration_minutes: duration,
-          grid_minutes: cfg(:slot_grid_minutes),
-          buffer_minutes: cfg(:buffer_minutes),
-          min_notice_minutes: cfg(:min_notice_minutes),
-          now: DateTime.utc_now()
-        })
+    time_min = DateTime.new!(from_date, ~T[00:00:00], "Etc/UTC")
+    time_max = DateTime.new!(to_date, ~T[23:59:59], "Etc/UTC")
 
-      {:ok, slots}
-    else
-      {:error, reason} -> {:error, reason}
-    end
+    slots =
+      Availability.compute(%{
+        # Availability is the studio's working hours (Mon–Fri 2–9pm), not a Google calendar.
+        blocks: working_hour_blocks(from_date, to_date),
+        booked: booked_intervals(time_min, time_max) ++ held_intervals(time_min, time_max),
+        duration_minutes: duration,
+        grid_minutes: cfg(:slot_grid_minutes),
+        buffer_minutes: cfg(:buffer_minutes),
+        min_notice_minutes: cfg(:min_notice_minutes),
+        now: DateTime.utc_now()
+      })
+
+    {:ok, slots}
+  end
+
+  # One block per working day in the range, from working_start to working_end (studio tz),
+  # in UTC for Availability.compute. Lessons must fit inside, so none can run past the end.
+  defp working_hour_blocks(from_date, to_date) do
+    tz = cfg(:studio_timezone)
+    days = cfg(:working_days)
+    wstart = cfg(:working_start)
+    wend = cfg(:working_end)
+
+    from_date
+    |> Date.range(to_date)
+    |> Enum.filter(&(Date.day_of_week(&1) in days))
+    |> Enum.map(fn date ->
+      %{
+        starts_at: date |> DateTime.new!(wstart, tz) |> DateTime.shift_zone!("Etc/UTC"),
+        ends_at: date |> DateTime.new!(wend, tz) |> DateTime.shift_zone!("Etc/UTC")
+      }
+    end)
   end
 
   @spec preview_series(map()) :: {:ok, map()} | {:error, term()}
@@ -80,15 +95,15 @@ defmodule MusicStudio.Scheduling do
 
   # True if `starts` is one of the slots availability offers for that single day.
   defp slot_bookable?(slug, duration, date, starts) do
-    case list_available_slots(%{
-           instrument_slug: slug,
-           duration_minutes: duration,
-           from: date,
-           to: date
-         }) do
-      {:ok, slots} -> Enum.any?(slots, &(DateTime.compare(&1.starts_at, starts) == :eq))
-      {:error, _} -> false
-    end
+    {:ok, slots} =
+      list_available_slots(%{
+        instrument_slug: slug,
+        duration_minutes: duration,
+        from: date,
+        to: date
+      })
+
+    Enum.any?(slots, &(DateTime.compare(&1.starts_at, starts) == :eq))
   end
 
   @spec create_series(map()) :: {:ok, map()} | {:error, term()}

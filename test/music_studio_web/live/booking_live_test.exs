@@ -138,6 +138,13 @@ defmodule MusicStudioWeb.BookingLiveTest do
     assert has_element?(view, ~s([aria-current="step"]), "Schedule")
   end
 
+  # A near-future weekday (Mon–Fri) — availability is Mon–Fri 2–9pm, so weekends are empty.
+  defp weekday_target do
+    today = Date.utc_today()
+    n = Enum.find(2..8, fn n -> Date.day_of_week(Date.add(today, n)) in 1..5 end)
+    Date.add(today, n)
+  end
+
   # A near-future day (clears 24h notice, within the 2-month window) gets a 3–6pm PT block.
   defp stub_on_day(date) do
     d = Date.to_iso8601(date)
@@ -161,7 +168,7 @@ defmodule MusicStudioWeb.BookingLiveTest do
   end
 
   test "single booking shows a month calendar grid for the available month", %{conn: conn} do
-    target = Date.add(Date.utc_today(), 10)
+    target = weekday_target()
     stub_on_day(target)
     {:ok, view, _} = live(conn, "/book")
 
@@ -178,7 +185,7 @@ defmodule MusicStudioWeb.BookingLiveTest do
   end
 
   test "clicking an available day reveals that day's times", %{conn: conn} do
-    target = Date.add(Date.utc_today(), 10)
+    target = weekday_target()
     stub_on_day(target)
     {:ok, view, _} = live(conn, "/book")
     render_change(view, "choose", %{"instrument_slug" => "piano", "duration_minutes" => "60"})
