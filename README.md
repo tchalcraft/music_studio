@@ -69,24 +69,28 @@ stack, and commands.
 
 ## Deploying
 
-Production runs as an OTP release in a Docker container on **Render's free tier**, in
-front of the same **Neon** Postgres, with **Cloudflare** providing DNS/CDN/SSL for
-`tristanchalcraftmusic.com`. (Cloudflare can't run the BEAM, so it sits in front, not
-instead of, the app host.)
+**Live at [tristanchalcraftmusic.com](https://tristanchalcraftmusic.com).** Production runs
+as an OTP release in a Docker container on **Render's free tier**, in front of the **Neon**
+`production` branch, with **Resend** for email. DNS is on **Porkbun** and points straight at
+Render (Render issues the TLS cert) — no CDN layer in front for now.
 
-- **`Dockerfile`** — multi-stage OTP release, pinned to the dev toolchain
-  (Elixir 1.18.4 / OTP 28) because this Phoenix 1.7 + Beacon stack is version-sensitive.
-  The container runs pending migrations then boots the server (`CMD` → `bin/migrate && bin/server`).
-- **`render.yaml`** — Render Blueprint: one `plan: free` Docker web service. Connect Render
-  directly to the `tchalcraft/music_studio` repo.
+- **`Dockerfile`** — multi-stage OTP release on **Debian bookworm**, pinned to the dev
+  toolchain (Elixir 1.18.4 / OTP 28) because this Phoenix 1.7 + Beacon stack is
+  version-sensitive. It compiles the app *before* assets (LiveView colocated hooks), ships
+  the esbuild/tailwind binaries into the runner (Beacon compiles page JS/CSS at runtime),
+  and runs migrations then boots the server (`CMD` → `bin/migrate && bin/server`).
+- **`render.yaml`** — Render Blueprint: one `plan: free` Docker web service, built from this
+  repo's `main`.
 - **Env vars** (set in Render, never committed): `PHX_SERVER=true`, `DATABASE_URL` (Neon
   pooled URL), `SECRET_KEY_BASE` (`mix phx.gen.secret`), `PHX_HOST`, `POOL_SIZE=5`,
-  `INQUIRY_TO_EMAIL` / `INQUIRY_FROM_EMAIL`. `config/runtime.exs` reads these and applies
-  Neon's SSL + `prepare: :unnamed` (PgBouncer transaction mode) and a `check_origin`
-  allow-list for LiveView behind the proxy.
-- **Free-tier note:** the free web service sleeps after ~15 min idle (slow first request);
-  the DB stays on Neon free (not Render Postgres). Media currently lives as Postgres BLOBs;
-  offload to Cloudflare R2 later if Neon storage gets tight.
+  `RESEND_API_KEY`, `INQUIRY_TO_EMAIL` / `INQUIRY_FROM_EMAIL`, and `STRIPE_SECRET_KEY`.
+  `config/runtime.exs` reads these and applies Neon's SSL + `prepare: :unnamed` (PgBouncer
+  transaction mode), a `check_origin` allow-list, and the Resend mailer.
+- **Beacon boot:** `page_warming: :none` so pages compile lazily on first request rather
+  than blocking boot (the free tier's CPU can't warm them within Beacon's timeout).
+- **Free-tier notes:** the service sleeps after ~15 min idle (slow first request); the DB
+  stays on Neon free (not Render Postgres). Media currently lives as Postgres BLOBs — offload
+  to object storage (e.g. Cloudflare R2) later if Neon storage gets tight.
 
 Full deployment/DNS/TLS runbook: `../docs/architecture.md` (Deployment section) and
 `../checkpoint.md`. General Phoenix deploy docs: https://phoenix.hexdocs.pm/deployment.html.
