@@ -1,28 +1,51 @@
 defmodule MusicStudio.Scheduling.Notifier do
   @moduledoc """
-  Sends booking emails via the configured Swoosh adapter (Resend in prod): a confirmation
-  to the student with an `.ics` attachment, and a notification to the teacher. Addresses
-  come from `config :music_studio, MusicStudio.Scheduling` — never hard-coded.
+  Sends booking emails via the configured Swoosh adapter (Resend in prod). Visitor-facing
+  emails (confirmation, cancellation, reschedule) are branded multipart HTML+text via
+  `EmailTemplate`, with an `.ics` attachment on the confirmation. The studio notification
+  stays plain text. Addresses come from `config :music_studio, MusicStudio.Scheduling`.
   """
   import Swoosh.Email
 
   alias MusicStudio.Mailer
-  alias MusicStudio.Scheduling.ICS
+  alias MusicStudio.Scheduling.{EmailTemplate, ICS}
 
   @spec deliver_booking_emails(map()) :: {:ok, map()} | {:error, term()}
   def deliver_booking_emails(details) do
     from_addr = cfg(:notify_from)
     to_addr = cfg(:notify_to)
     when_str = local_string(details.starts_at, details.timezone)
-
     ics = ICS.build(ics_attrs(details, from_addr))
+
+    gcal =
+      EmailTemplate.google_calendar_url(%{
+        title: "#{String.capitalize(details.instrument)} lesson",
+        details: "#{details.duration_minutes}-minute #{details.instrument} lesson. Manage: #{details.manage_url}",
+        location: "Studio",
+        starts_at: details.starts_at,
+        ends_at: details.ends_at
+      })
+
+    body_opts = [
+      title: "You're booked!",
+      greeting: "Hi #{details.visitor_name},",
+      paragraphs: [
+        "Your #{details.duration_minutes}-minute #{details.instrument} lesson is confirmed. The attached calendar file (lesson.ics) can be added to your calendar, or use the button below for Google Calendar.",
+        "Need to change it? Use the link below."
+      ],
+      details: [{"When", when_str}, {"Where", "Studio"}],
+      cta: %{label: "Add to Google Calendar", url: gcal}
+    ]
+
+    extra = [{"Manage your booking", details.manage_url}]
 
     confirmation =
       new()
       |> to({details.visitor_name, details.visitor_email})
-      |> from({"Music Studio", from_addr})
+      |> from({"Tristan Music", from_addr})
       |> subject("Your #{details.instrument} lesson is booked — #{when_str}")
-      |> text_body(confirmation_body(details, when_str))
+      |> html_body(EmailTemplate.html(body_opts))
+      |> text_body(EmailTemplate.text(body_opts ++ [details: body_opts[:details] ++ extra]))
       |> attachment(
         Swoosh.Attachment.new({:data, ics},
           filename: "lesson.ics",
@@ -45,6 +68,48 @@ defmodule MusicStudio.Scheduling.Notifier do
     end
   end
 
+  @spec deliver_cancellation(map()) :: {:ok, Swoosh.Email.t()} | {:error, term()}
+  def deliver_cancellation(details) do
+    when_str = local_string(details.starts_at, details.timezone)
+
+    opts = [
+      title: "Your lesson is cancelled",
+      greeting: "Hi #{details.visitor_name},",
+      paragraphs: ["Your #{details.instrument} lesson on #{when_str} has been cancelled. Hope to see you again soon — you can book any time."],
+      details: [{"Was", when_str}],
+      cta: nil
+    ]
+
+    deliver_visitor(details, "Your #{details.instrument} lesson was cancelled", opts)
+  end
+
+  @spec deliver_reschedule(map()) :: {:ok, Swoosh.Email.t()} | {:error, term()}
+  def deliver_reschedule(details) do
+    when_str = local_string(details.starts_at, details.timezone)
+
+    opts = [
+      title: "Your lesson moved",
+      greeting: "Hi #{details.visitor_name},",
+      paragraphs: ["Your #{details.instrument} lesson has been moved. Here are the new details:"],
+      details: [{"New time", when_str}, {"Where", "Studio"}],
+      cta: %{label: "Manage your booking", url: details.manage_url}
+    ]
+
+    deliver_visitor(details, "Your #{details.instrument} lesson moved to #{when_str}", opts)
+  end
+
+  defp deliver_visitor(details, subject, opts) do
+    email =
+      new()
+      |> to({details.visitor_name, details.visitor_email})
+      |> from({"Tristan Music", cfg(:notify_from)})
+      |> subject(subject)
+      |> html_body(EmailTemplate.html(opts))
+      |> text_body(EmailTemplate.text(opts))
+
+    with {:ok, _} <- Mailer.deliver(email), do: {:ok, email}
+  end
+
   defp ics_attrs(d, organizer_email) do
     %{
       uid: d.uid,
@@ -57,19 +122,6 @@ defmodule MusicStudio.Scheduling.Notifier do
       attendee_email: d.visitor_email,
       now: DateTime.utc_now()
     }
-  end
-
-  defp confirmation_body(d, when_str) do
-    """
-    Hi #{d.visitor_name},
-
-    Your #{d.duration_minutes}-minute #{d.instrument} lesson is booked for #{when_str}.
-    The attached calendar file (lesson.ics) can be added to your own calendar.
-
-    Need to change it? #{d.manage_url}
-
-    See you then!
-    """
   end
 
   defp notification_body(d, when_str) do
