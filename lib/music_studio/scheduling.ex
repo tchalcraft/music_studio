@@ -422,6 +422,62 @@ defmodule MusicStudio.Scheduling do
     |> Repo.update()
   end
 
+  @spec week_alternates(map(), Date.t()) :: {:ok, [Availability.Slot.t()]} | {:error, term()}
+  def week_alternates(%{instrument_slug: slug, duration_minutes: duration}, week_of) do
+    monday = Date.add(week_of, -(Date.day_of_week(week_of) - 1))
+
+    list_available_slots(%{
+      instrument_slug: slug,
+      duration_minutes: duration,
+      from: monday,
+      to: Date.add(monday, 6)
+    })
+  end
+
+  @spec add_series_lesson(String.t(), DateTime.t()) :: {:ok, Lesson.t()} | {:error, term()}
+  def add_series_lesson(series_token, starts_at) do
+    with %Enrollment{} = enr <- get_series_by_token(series_token),
+         enr <- Repo.preload(enr, :offering),
+         ends_at <- DateTime.add(starts_at, enr.offering.duration_minutes, :minute),
+         {:ok, lesson} <- Repo.insert(add_series_lesson_changeset(enr, starts_at, ends_at)) do
+      side_effect(fn -> add_series_event(enr, lesson, ends_at) end)
+      {:ok, lesson}
+    else
+      nil -> {:error, :not_found}
+      {:error, %Ecto.Changeset{errors: errors}} -> booking_error(errors)
+    end
+  end
+
+  defp add_series_lesson_changeset(enr, starts_at, ends_at) do
+    Lesson.changeset(%Lesson{}, %{
+      scheduled_start: DateTime.truncate(starts_at, :second),
+      scheduled_end: DateTime.truncate(ends_at, :second),
+      duration_minutes: enr.offering.duration_minutes,
+      status: :scheduled,
+      price_cents: enr.offering.price_cents,
+      currency: enr.offering.currency,
+      teacher_id: enr.teacher_id,
+      student_id: enr.student_id,
+      instrument_id: enr.instrument_id,
+      offering_id: enr.offering_id,
+      enrollment_id: enr.id,
+      booking_token: gen_token()
+    })
+  end
+
+  defp add_series_event(enr, lesson, ends_at) do
+    GoogleCalendar.insert_event(target_calendar(), %{
+      summary: "Lesson — #{enr.contact_email}",
+      description: "Series alternate.",
+      location: "Studio",
+      starts_at: lesson.scheduled_start,
+      ends_at: ends_at,
+      timezone: cfg(:studio_timezone),
+      attendee_email: enr.contact_email,
+      send_updates: "all"
+    })
+  end
+
   # --- internals ---
 
   defp after_booking(lesson, teacher, instrument, params, ends_at) do
