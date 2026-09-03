@@ -35,6 +35,8 @@ defmodule MusicStudioWeb.BookingLive do
      |> assign(:selected_day, nil)
      |> assign(:cal_month, nil)
      |> assign(:cadence, "once")
+     |> assign(:rec_pattern, nil)
+     |> assign(:series_start, nil)
      |> assign(:series_preview, nil)
      |> assign(:booked, nil)
      |> assign(:booked_series, nil)
@@ -97,7 +99,41 @@ defmodule MusicStudioWeb.BookingLive do
   end
 
   def handle_event("set_cadence", %{"cadence" => cadence}, socket) do
-    {:noreply, socket |> assign(cadence: cadence, selected_day: nil) |> maybe_preview()}
+    {:noreply,
+     socket
+     |> assign(
+       cadence: cadence,
+       selected_day: nil,
+       rec_pattern: nil,
+       series_start: nil,
+       selected_slot: nil
+     )
+     |> maybe_preview()}
+  end
+
+  # Recurring: pick the usual weekday + time, then default the start to that weekday's
+  # earliest bookable occurrence and reveal the start-date stepper.
+  def handle_event("pick_pattern", %{"start" => iso}, socket) do
+    {:ok, dt, _} = DateTime.from_iso8601(iso)
+    weekday = dt |> local_date() |> Date.day_of_week()
+
+    {:noreply,
+     socket
+     |> assign(rec_pattern: dt, series_start: default_start(weekday))
+     |> put_series_slot()
+     |> maybe_preview()}
+  end
+
+  def handle_event("start_later", _params, socket) do
+    {:noreply, socket |> shift_start(7) |> put_series_slot() |> maybe_preview()}
+  end
+
+  def handle_event("start_earlier", _params, socket) do
+    {:noreply, socket |> shift_start(-7) |> put_series_slot() |> maybe_preview()}
+  end
+
+  def handle_event("to_details", _params, socket) do
+    {:noreply, assign(socket, :step, :details)}
   end
 
   def handle_event("pick_day", %{"date" => date}, socket) do
@@ -358,28 +394,74 @@ defmodule MusicStudioWeb.BookingLive do
           </div>
         </div>
 
-        <%!-- RECURRING: one week — pick the usual day & time, we repeat it through the term. --%>
-        <div :if={@cadence != "once" and @slots != []} class="mt-4">
+        <%!-- RECURRING, step 1: pick the usual weekday + time (a full representative week). --%>
+        <div :if={@cadence != "once"} class="mt-4">
           <p class="text-sm text-gray-600">
-            Pick your usual day &amp; time — we'll repeat it {cadence_word(@cadence)} through June 30.
+            Pick your usual day &amp; time — repeats {cadence_word(@cadence)} through June 30.
+            Pause or cancel anytime; billed monthly.
           </p>
 
-          <div class="mt-3 space-y-3">
-            <div :for={day <- week_days_for(@slots_by_day)}>
-              <h3 class="text-sm font-medium">{Calendar.strftime(day, "%A, %b %-d")}</h3>
-              <div class="mt-1 flex flex-wrap gap-2">
-                <button
-                  :for={slot <- day_slots(day, @slots_by_day)}
-                  type="button"
-                  phx-click="pick_slot"
-                  phx-value-start={DateTime.to_iso8601(slot.starts_at)}
-                  class="rounded border px-3 py-1 hover:border-indigo-600"
-                >
-                  {time_label(slot.starts_at)}
-                </button>
-                <span :if={day_slots(day, @slots_by_day) == []} class="text-sm text-gray-300">—</span>
-              </div>
+          <div class="mt-3 space-y-2">
+            <div :for={day <- representative_week()} class="flex flex-wrap items-baseline gap-2">
+              <span class="w-24 shrink-0 text-sm font-medium text-gray-700">
+                {Calendar.strftime(day, "%A")}
+              </span>
+              <button
+                :for={slot <- day_slots(day, @slots_by_day)}
+                type="button"
+                phx-click="pick_pattern"
+                phx-value-start={DateTime.to_iso8601(slot.starts_at)}
+                class={[
+                  "rounded border px-3 py-1 text-sm hover:border-indigo-600",
+                  pattern_selected?(@rec_pattern, slot.starts_at) && "bg-indigo-600 text-white"
+                ]}
+              >
+                {time_label(slot.starts_at)}
+              </button>
+              <span :if={day_slots(day, @slots_by_day) == []} class="text-sm text-gray-300">—</span>
             </div>
+          </div>
+
+          <%!-- RECURRING, step 2: choose the start date, then continue. --%>
+          <div :if={@rec_pattern} class="mt-5 rounded-lg border border-indigo-200 bg-indigo-50/50 p-4">
+            <div class="flex items-center gap-3 text-sm">
+              <span class="font-medium">Starts on</span>
+              <button
+                type="button"
+                phx-click="start_earlier"
+                disabled={!can_start_earlier?(@series_start, @rec_pattern)}
+                class="rounded px-2 py-1 text-indigo-700 disabled:text-gray-300"
+                aria-label="Earlier start"
+              >
+                ◀
+              </button>
+              <span class="font-medium tabular-nums">{Calendar.strftime(@series_start, "%A, %b %-d")}</span>
+              <button
+                type="button"
+                phx-click="start_later"
+                class="rounded px-2 py-1 text-indigo-700"
+                aria-label="Later start"
+              >
+                ▶
+              </button>
+            </div>
+
+            <p class="mt-3 text-sm text-indigo-900">
+              Every {Calendar.strftime(@series_start, "%A")}, {time_label(@rec_pattern)}
+              <span :if={@series_preview}>
+                · {length(@series_preview.bookable)} lessons through Jun 30<span :if={
+                  @series_preview.conflicted != []
+                }>· {length(@series_preview.conflicted)} week(s) need another time</span>
+              </span>
+            </p>
+
+            <button
+              type="button"
+              phx-click="to_details"
+              class="mt-3 rounded bg-indigo-600 px-4 py-2 text-white"
+            >
+              Continue
+            </button>
           </div>
         </div>
       </section>
@@ -488,14 +570,49 @@ defmodule MusicStudioWeb.BookingLive do
     grid_start |> Date.range(grid_end) |> Enum.chunk_every(7)
   end
 
-  # The Sun–Sat week containing the earliest available day (for the recurring picker).
-  defp week_days_for(by_day) when map_size(by_day) == 0, do: []
-
-  defp week_days_for(by_day) do
-    earliest = by_day |> Map.keys() |> Enum.min(Date)
-    start = Date.add(earliest, -(Date.day_of_week(earliest, :sunday) - 1))
+  # A full upcoming week (Sun–Sat of next week) — always future, so every weekday shows
+  # its real openings (empties are greyed) rather than a partial current week.
+  defp representative_week do
+    base = Date.add(today_local(), 7)
+    start = Date.add(base, -(Date.day_of_week(base, :sunday) - 1))
     Enum.map(0..6, &Date.add(start, &1))
   end
+
+  # Earliest bookable occurrence of `weekday` (1=Mon..7=Sun): from tomorrow (24h notice).
+  defp default_start(weekday) do
+    floor = Date.add(today_local(), 1)
+    Date.add(floor, rem(weekday - Date.day_of_week(floor) + 7, 7))
+  end
+
+  defp put_series_slot(%{assigns: %{rec_pattern: nil}} = socket), do: socket
+
+  defp put_series_slot(%{assigns: %{rec_pattern: dt, series_start: start}} = socket) do
+    time = dt |> DateTime.shift_zone!(studio_tz()) |> DateTime.to_time()
+
+    assign(
+      socket,
+      :selected_slot,
+      MusicStudio.Scheduling.Recurrence.occurrence_utc(start, time, studio_tz())
+    )
+  end
+
+  defp shift_start(socket, days) do
+    weekday = socket.assigns.rec_pattern |> local_date() |> Date.day_of_week()
+    floor = default_start(weekday)
+    target = Date.add(socket.assigns.series_start, days)
+    clamped = if Date.compare(target, floor) == :lt, do: floor, else: target
+    assign(socket, :series_start, clamped)
+  end
+
+  defp can_start_earlier?(nil, _rec_pattern), do: false
+
+  defp can_start_earlier?(series_start, rec_pattern) do
+    weekday = rec_pattern |> local_date() |> Date.day_of_week()
+    Date.compare(series_start, default_start(weekday)) == :gt
+  end
+
+  defp pattern_selected?(nil, _starts_at), do: false
+  defp pattern_selected?(rec, starts_at), do: DateTime.compare(rec, starts_at) == :eq
 
   defp min_month, do: Date.beginning_of_month(today_local())
   defp max_month, do: Date.beginning_of_month(Date.add(today_local(), 62))

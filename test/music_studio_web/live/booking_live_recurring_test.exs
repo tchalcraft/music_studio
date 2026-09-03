@@ -3,7 +3,9 @@ defmodule MusicStudioWeb.BookingLiveRecurringTest do
   import Phoenix.LiveViewTest
 
   alias MusicStudio.Catalog
-  alias MusicStudio.Scheduling.{Credentials, GoogleAuth}
+  alias MusicStudio.Scheduling.{Credentials, GoogleAuth, Recurrence}
+
+  @tz "America/Vancouver"
 
   setup do
     Application.put_env(:music_studio, :scheduling_req_options, plug: {Req.Test, GoogleAuth})
@@ -30,20 +32,28 @@ defmodule MusicStudioWeb.BookingLiveRecurringTest do
         target_calendar_id: "c"
       })
 
+    # Weekday 3–6pm PT blocks across whatever range is queried (so the picker + the
+    # term projection both have availability).
     Req.Test.stub(GoogleAuth, fn conn ->
       case conn.method do
         "GET" ->
           conn = Plug.Conn.fetch_query_params(conn)
-          day = conn.query_params["timeMin"] |> String.slice(0, 10)
+          {:ok, tmin, _} = DateTime.from_iso8601(conn.query_params["timeMin"])
+          {:ok, tmax, _} = DateTime.from_iso8601(conn.query_params["timeMax"])
+          dmin = DateTime.to_date(tmin)
+          dmax = Enum.min([DateTime.to_date(tmax), Date.add(dmin, 400)], Date)
 
-          Req.Test.json(conn, %{
-            "items" => [
+          items =
+            for d <- Date.range(dmin, dmax), Date.day_of_week(d) in 1..5 do
+              ds = Date.to_iso8601(d)
+
               %{
-                "start" => %{"dateTime" => day <> "T15:00:00-07:00"},
-                "end" => %{"dateTime" => day <> "T18:00:00-07:00"}
+                "start" => %{"dateTime" => ds <> "T15:00:00-07:00"},
+                "end" => %{"dateTime" => ds <> "T18:00:00-07:00"}
               }
-            ]
-          })
+            end
+
+          Req.Test.json(conn, %{"items" => items})
 
         _ ->
           Req.Test.json(conn, %{"id" => "evt-1"})
@@ -53,31 +63,73 @@ defmodule MusicStudioWeb.BookingLiveRecurringTest do
     :ok
   end
 
-  # A concrete future slot (June term, well past the 24h min-notice). Its day gets a
-  # 15:00–18:00 block from the stub, so 16:00 is a bookable slot.
-  defp future_slot_iso do
-    ~D[2027-06-01]
-    |> MusicStudio.Scheduling.Recurrence.occurrence_utc(~T[16:00:00], "America/Vancouver")
-    |> DateTime.to_iso8601()
+  defp studio_today, do: DateTime.utc_now() |> DateTime.shift_zone!(@tz) |> DateTime.to_date()
+
+  # Earliest bookable occurrence of `weekday` (1=Mon..7=Sun): from tomorrow (24h notice).
+  defp default_start(weekday) do
+    floor = Date.add(studio_today(), 1)
+    Date.add(floor, rem(weekday - Date.day_of_week(floor) + 7, 7))
   end
 
-  test "choosing weekly + a slot shows a series preview", %{conn: conn} do
+  # A Wednesday (weekday 3, always a weekday) ≥ a week out, at 3:00 PM PT — a valid pattern.
+  defp wednesday_pattern_iso do
+    today = studio_today()
+    offset = rem(3 - Date.day_of_week(today) + 7, 7)
+    wed = Date.add(today, offset + 7)
+    wed |> Recurrence.occurrence_utc(~T[15:00:00], @tz) |> DateTime.to_iso8601()
+  end
+
+  defp start_schedule(conn) do
     {:ok, view, _} = live(conn, "/book")
-
     render_change(view, "choose", %{"instrument_slug" => "piano", "duration_minutes" => "60"})
-    assert render(view) =~ "Available times"
     render_change(view, "set_cadence", %{"cadence" => "weekly"})
+    view
+  end
 
-    html = render_click(view, "pick_slot", %{"start" => future_slot_iso()})
-    assert html =~ "lessons through June 30"
+  test "weekly cadence shows a full-week day & time picker with the terms", %{conn: conn} do
+    view = start_schedule(conn)
+    html = render(view)
+
+    assert html =~ "usual day"
+    assert html =~ "billed monthly"
+    assert html =~ "Wednesday"
+    assert has_element?(view, ~s(button[phx-click="pick_pattern"]))
+  end
+
+  test "picking the day & time reveals the start-date step with a preview", %{conn: conn} do
+    view = start_schedule(conn)
+
+    html = render_click(view, "pick_pattern", %{"start" => wednesday_pattern_iso()})
+
+    assert html =~ "Starts on"
+    assert html =~ Calendar.strftime(default_start(3), "%A, %b %-d")
+    assert html =~ "lessons through Jun 30"
+  end
+
+  test "stepping the start date moves it one week and back", %{conn: conn} do
+    view = start_schedule(conn)
+    render_click(view, "pick_pattern", %{"start" => wednesday_pattern_iso()})
+
+    render_click(view, "start_later", %{})
+    assert render(view) =~ Calendar.strftime(Date.add(default_start(3), 7), "%A, %b %-d")
+
+    render_click(view, "start_earlier", %{})
+    assert render(view) =~ Calendar.strftime(default_start(3), "%A, %b %-d")
+  end
+
+  test "Continue advances to Your details", %{conn: conn} do
+    view = start_schedule(conn)
+    render_click(view, "pick_pattern", %{"start" => wednesday_pattern_iso()})
+
+    html = render_click(view, "to_details", %{})
+    assert html =~ "Your name"
+    assert has_element?(view, ~s([aria-current="step"]), "Your details")
   end
 
   test "booking a weekly series shows the series confirmation", %{conn: conn} do
-    {:ok, view, _} = live(conn, "/book")
-
-    render_change(view, "choose", %{"instrument_slug" => "piano", "duration_minutes" => "60"})
-    render_change(view, "set_cadence", %{"cadence" => "weekly"})
-    render_click(view, "pick_slot", %{"start" => future_slot_iso()})
+    view = start_schedule(conn)
+    render_click(view, "pick_pattern", %{"start" => wednesday_pattern_iso()})
+    render_click(view, "to_details", %{})
 
     html =
       render_submit(view, "book", %{

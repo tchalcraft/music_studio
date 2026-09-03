@@ -180,7 +180,7 @@ defmodule MusicStudioWeb.BookingLiveTest do
     assert has_element?(view, ~s(button[phx-click="pick_slot"]))
   end
 
-  test "recurring cadence shows a one-week day-by-day view", %{conn: conn} do
+  test "recurring cadence shows the day & time picker with the terms", %{conn: conn} do
     target = Date.add(Date.utc_today(), 10)
     stub_on_day(target)
     {:ok, view, _} = live(conn, "/book")
@@ -189,7 +189,8 @@ defmodule MusicStudioWeb.BookingLiveTest do
     html = render_change(view, "set_cadence", %{"cadence" => "weekly"})
 
     assert html =~ "usual day"
-    assert html =~ Calendar.strftime(target, "%A, %b")
+    assert html =~ "billed monthly"
+    assert html =~ "Wednesday"
   end
 
   test "the month can be navigated with next/prev", %{conn: conn} do
