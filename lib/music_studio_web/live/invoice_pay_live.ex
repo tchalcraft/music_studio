@@ -97,14 +97,10 @@ defmodule MusicStudioWeb.InvoicePayLive do
 
                 <dl class="ms-list" style="margin-top:1.5rem">
                   <div style="display:flex;justify-content:space-between">
-                    <dt>Amount</dt>
+                    <dt>Amount due</dt>
                     <dd id="invoice-subtotal">{money(@invoice.subtotal_cents, @invoice.currency)}</dd>
                   </div>
                 </dl>
-
-                <p class="ms-note" style="margin-top:1rem">
-                  Applicable sales tax is calculated at checkout and added to this amount.
-                </p>
 
                 <%= if @error do %>
                   <p class="ms-error" id="pay-error" style="margin-top:1rem">{@error}</p>

@@ -10,8 +10,7 @@ defmodule MusicStudio.Billing.Stripe do
   Covers the pieces the pay-an-invoice flow needs:
 
     * `health_check/0` — confirm the secret key reaches Stripe.
-    * `create_checkout_session/2` — open a hosted Checkout Session (with Stripe Tax) for
-      an invoice.
+    * `create_checkout_session/2` — open a hosted Checkout Session for an invoice.
     * `construct_event/2` — verify a webhook's `Stripe-Signature` and decode its payload.
   """
 
@@ -47,9 +46,9 @@ defmodule MusicStudio.Billing.Stripe do
   @doc """
   Creates a Stripe Checkout Session to pay `invoice`.
 
-  `mode: payment` with Stripe Tax enabled (tax added on top of the invoice subtotal —
-  `tax_behavior: exclusive`). The invoice id travels in both `client_reference_id` and
-  `metadata[invoice_id]` so the webhook can reconcile the payment.
+  `mode: payment` for a single line item covering the invoice subtotal. The invoice id
+  travels in both `client_reference_id` and `metadata[invoice_id]` so the webhook can
+  reconcile the payment. (No tax is collected — Stripe Tax is intentionally not enabled.)
 
   Required `opts`: `:success_url`, `:cancel_url`.
 
@@ -113,13 +112,10 @@ defmodule MusicStudio.Billing.Stripe do
       {"success_url", success_url},
       {"cancel_url", cancel_url},
       {"client_reference_id", invoice.id},
-      {"billing_address_collection", "required"},
-      {"automatic_tax[enabled]", "true"},
       {"metadata[invoice_id]", invoice.id},
       {"line_items[0][quantity]", "1"},
       {"line_items[0][price_data][currency]", currency},
       {"line_items[0][price_data][unit_amount]", invoice.subtotal_cents},
-      {"line_items[0][price_data][tax_behavior]", "exclusive"},
       {"line_items[0][price_data][product_data][name]", line_item_name(invoice)}
     ]
   end

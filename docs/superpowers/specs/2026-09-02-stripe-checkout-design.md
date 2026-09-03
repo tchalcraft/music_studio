@@ -1,6 +1,12 @@
-# Stripe Checkout + Stripe Tax — pay an existing invoice
+# Stripe Checkout — pay an existing invoice
 
 _2026-09-02_
+
+> **Amendment (2026-09-02):** Stripe Tax was dropped before merge. Checkout runs without
+> `automatic_tax`/`tax_behavior` and collects exactly the invoice subtotal — no sales tax.
+> The `invoices.tax_cents` column stays (a standard invoice field; it just remains `0`), so
+> tax can be reintroduced later without a schema change. References to Stripe Tax below are
+> superseded by this note.
 
 ## Context
 

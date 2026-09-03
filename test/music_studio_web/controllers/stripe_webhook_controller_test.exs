@@ -25,10 +25,10 @@ defmodule MusicStudioWeb.StripeWebhookControllerTest do
         "object" => %{
           "id" => "cs_test_webhook_#{System.unique_integer([:positive])}",
           "client_reference_id" => invoice.id,
-          "amount_total" => 6300,
+          "amount_total" => 6000,
           "currency" => "cad",
           "payment_intent" => "pi_webhook_1",
-          "total_details" => %{"amount_tax" => 300}
+          "total_details" => %{"amount_tax" => 0}
         }
       }
     })

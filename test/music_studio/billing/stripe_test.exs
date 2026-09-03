@@ -36,10 +36,11 @@ defmodule MusicStudio.Billing.StripeTest do
         assert conn.method == "POST"
         assert conn.request_path == "/v1/checkout/sessions"
         assert decoded =~ "mode=payment"
-        assert decoded =~ "automatic_tax[enabled]=true"
         assert decoded =~ "line_items[0][price_data][unit_amount]=6000"
-        assert decoded =~ "line_items[0][price_data][tax_behavior]=exclusive"
         assert decoded =~ "client_reference_id=#{invoice.id}"
+        # Stripe Tax is intentionally not enabled.
+        refute decoded =~ "automatic_tax"
+        refute decoded =~ "tax_behavior"
 
         Req.Test.json(conn, %{
           "id" => "cs_test_123",

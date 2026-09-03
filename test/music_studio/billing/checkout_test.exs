@@ -28,10 +28,10 @@ defmodule MusicStudio.Billing.CheckoutTest do
       %{
         "id" => "cs_test_#{System.unique_integer([:positive])}",
         "client_reference_id" => invoice.id,
-        "amount_total" => 6780,
+        "amount_total" => 6000,
         "currency" => "cad",
         "payment_intent" => "pi_test_1",
-        "total_details" => %{"amount_tax" => 780}
+        "total_details" => %{"amount_tax" => 0}
       },
       overrides
     )
@@ -40,12 +40,12 @@ defmodule MusicStudio.Billing.CheckoutTest do
   describe "fulfill_session/1" do
     setup :open_invoice
 
-    test "records a Stripe payment, sets tax, and marks the invoice paid", %{invoice: invoice} do
+    test "records a Stripe payment and marks the invoice paid", %{invoice: invoice} do
       session = session_for(invoice)
 
       assert {:ok, %Payment{} = payment} = Checkout.fulfill_session(session)
       assert payment.method == :stripe
-      assert payment.amount_cents == 6780
+      assert payment.amount_cents == 6000
       assert payment.currency == "CAD"
       assert payment.stripe_checkout_session_id == session["id"]
       assert payment.stripe_payment_intent_id == "pi_test_1"
@@ -53,8 +53,8 @@ defmodule MusicStudio.Billing.CheckoutTest do
 
       reloaded = Billing.get_invoice!(invoice.id)
       assert reloaded.status == :paid
-      assert reloaded.tax_cents == 780
-      assert reloaded.total_cents == 6780
+      assert reloaded.tax_cents == 0
+      assert reloaded.total_cents == 6000
     end
 
     test "records an analytics event", %{invoice: invoice} do
