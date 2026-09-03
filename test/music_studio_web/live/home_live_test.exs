@@ -14,6 +14,14 @@ defmodule MusicStudioWeb.HomeLiveTest do
     assert html =~ "Payment by cash or e-transfer."
   end
 
+  test "the homepage links to the booking page", %{conn: conn} do
+    {:ok, view, html} = live(conn, ~p"/")
+
+    assert html =~ "Book a session"
+    assert html =~ "Book a lesson online"
+    assert has_element?(view, ~s(a[href="/book"]))
+  end
+
   test "a valid inquiry persists a lead and shows confirmation", %{conn: conn} do
     {:ok, lv, _html} = live(conn, ~p"/")
 

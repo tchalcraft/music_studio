@@ -76,9 +76,10 @@ defmodule MusicStudioWeb.HomeLive do
           <nav class="ms-nav__links">
             <a class="ms-nav__link" href="#about">About</a>
             <a class="ms-nav__link" href="#lessons">Lessons &amp; Rates</a>
+            <a class="ms-nav__link" href="#booking">Booking</a>
             <a class="ms-nav__link" href="#contact">Contact</a>
           </nav>
-          <a class="ms-btn ms-btn--primary" href="#contact">Inquire</a>
+          <.link navigate={~p"/book"} class="ms-btn ms-btn--primary">Book a session</.link>
         </div>
       </header>
 
@@ -95,8 +96,9 @@ defmodule MusicStudioWeb.HomeLive do
               welcoming local studio, for beginners and returning musicians alike.
             </p>
             <div style="margin-top:2rem;display:flex;gap:0.75rem;flex-wrap:wrap">
-              <a class="ms-btn ms-btn--primary" href="#contact">Inquire about lessons</a>
+              <.link navigate={~p"/book"} class="ms-btn ms-btn--primary">Book a session</.link>
               <a class="ms-btn ms-btn--ghost" href="#lessons">See lessons &amp; rates</a>
+              <a class="ms-btn ms-btn--ghost" href="#contact">Inquire</a>
             </div>
           </div>
         </section>
@@ -176,6 +178,10 @@ defmodule MusicStudioWeb.HomeLive do
               </div>
             </div>
 
+            <div style="margin-top:2rem">
+              <.link navigate={~p"/book"} class="ms-btn ms-btn--primary">Book a session</.link>
+            </div>
+
             <div class="ms-card" style="margin-top:2rem;max-width:32rem">
               <h3 class="ms-h3" style="margin-bottom:0.75rem">Rates</h3>
               <table class="ms-rates">
@@ -202,6 +208,22 @@ defmodule MusicStudioWeb.HomeLive do
                 cancel or reschedule with at least 24 hours' notice. Recurring lessons can be
                 paused for up to one month, and your regular time stays reserved while paused.
               </p>
+            </div>
+          </div>
+        </section>
+
+        <%!-- Booking --%>
+        <section id="booking" class="ms-section">
+          <div class="ms-container" style="max-width:38rem">
+            <p class="ms-eyebrow">Booking</p>
+            <h2 class="ms-h2" style="margin-top:0.75rem">Book a lesson online</h2>
+            <p class="ms-lead" style="margin-top:0.75rem">
+              Choose your instrument and lesson length, pick a time that works, and you're
+              set — book a single lesson, or reserve a weekly (or every-other-week) spot for
+              the school year. You'll get an email confirmation with a calendar invite.
+            </p>
+            <div style="margin-top:1.5rem">
+              <.link navigate={~p"/book"} class="ms-btn ms-btn--primary">Book a session</.link>
             </div>
           </div>
         </section>
