@@ -16,6 +16,8 @@ defmodule MusicStudio.Billing do
 
   def get_invoice!(id), do: Repo.get!(Invoice, id)
 
+  def get_invoice(id), do: Repo.get(Invoice, id)
+
   def change_invoice(%Invoice{} = i \\ %Invoice{}, attrs \\ %{}), do: Invoice.changeset(i, attrs)
 
   def create_invoice(attrs \\ %{}), do: %Invoice{} |> Invoice.changeset(attrs) |> Repo.insert()

@@ -52,6 +52,8 @@ defmodule MusicStudioWeb.Endpoint do
   plug Plug.Parsers,
     parsers: [:urlencoded, :multipart, :json],
     pass: ["*/*"],
+    # Cache the raw body for the Stripe webhook path so its signature can be verified.
+    body_reader: {MusicStudioWeb.CacheBodyReader, :read_body, []},
     json_decoder: Phoenix.json_library()
 
   plug Plug.MethodOverride

@@ -7,7 +7,7 @@ defmodule MusicStudio.Billing.Payment do
   alias MusicStudio.Teaching.Guardian
   alias MusicStudio.Teaching.Student
 
-  @methods [:cash, :e_transfer, :card, :other]
+  @methods [:cash, :e_transfer, :card, :stripe, :other]
 
   schema "payments" do
     field :amount_cents, :integer
@@ -15,6 +15,8 @@ defmodule MusicStudio.Billing.Payment do
     field :method, Ecto.Enum, values: @methods, default: :e_transfer
     field :paid_at, :utc_datetime_usec
     field :reference, :string
+    field :stripe_checkout_session_id, :string
+    field :stripe_payment_intent_id, :string
     field :deleted_at, :utc_datetime_usec
 
     belongs_to :invoice, Invoice
@@ -36,6 +38,8 @@ defmodule MusicStudio.Billing.Payment do
       :method,
       :paid_at,
       :reference,
+      :stripe_checkout_session_id,
+      :stripe_payment_intent_id,
       :deleted_at,
       :invoice_id,
       :guardian_id,
@@ -46,5 +50,6 @@ defmodule MusicStudio.Billing.Payment do
     |> assoc_constraint(:invoice)
     |> assoc_constraint(:guardian)
     |> assoc_constraint(:student)
+    |> unique_constraint(:stripe_checkout_session_id)
   end
 end
