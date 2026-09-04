@@ -36,6 +36,10 @@ defmodule MusicStudioWeb.Endpoint do
   # Code reloading can be explicitly enabled under the
   # :code_reloader configuration of your endpoint.
   if code_reloading? do
+    # Tidewave: dev-only runtime-intelligence MCP server at /tidewave/mcp.
+    # See .claude/skills/tidewave. Guarded by code_reloading? so it never loads in prod.
+    plug Tidewave
+
     socket "/phoenix/live_reload/socket", Phoenix.LiveReloader.Socket
     plug Phoenix.LiveReloader
     plug Phoenix.CodeReloader
