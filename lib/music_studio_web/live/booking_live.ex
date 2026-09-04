@@ -260,9 +260,10 @@ defmodule MusicStudioWeb.BookingLive do
             phx-value-slug={i.slug}
             aria-pressed={@instrument_slug == i.slug}
             class={[
-              "rounded-lg border px-4 py-3 text-center hover:border-indigo-600",
-              (@instrument_slug == i.slug && "border-indigo-600 bg-indigo-600 text-white") ||
-                "border-gray-300"
+              "rounded-lg border px-4 py-3 text-center shadow-sm transition hover:shadow-md active:scale-[.98]",
+              (@instrument_slug == i.slug &&
+                 "border-indigo-600 bg-indigo-600 text-white shadow-md") ||
+                "border-gray-300 bg-white text-gray-900 hover:border-indigo-600"
             ]}
           >
             {i.name}
@@ -278,9 +279,10 @@ defmodule MusicStudioWeb.BookingLive do
             phx-value-minutes={d}
             aria-pressed={@duration_minutes == d}
             class={[
-              "rounded-lg border px-4 py-3 text-center hover:border-indigo-600",
-              (@duration_minutes == d && "border-indigo-600 bg-indigo-600 text-white") ||
-                "border-gray-300"
+              "rounded-lg border px-4 py-3 text-center shadow-sm transition hover:shadow-md active:scale-[.98]",
+              (@duration_minutes == d &&
+                 "border-indigo-600 bg-indigo-600 text-white shadow-md") ||
+                "border-gray-300 bg-white text-gray-900 hover:border-indigo-600"
             ]}
           >
             {d} min
@@ -305,7 +307,10 @@ defmodule MusicStudioWeb.BookingLive do
           Couldn't load times. Please try again.
         </p>
 
-        <form phx-change="set_cadence" class="mt-3 flex flex-wrap gap-4 text-sm">
+        <form
+          phx-change="set_cadence"
+          class="mt-3 flex flex-col gap-2 text-sm sm:flex-row sm:flex-wrap sm:gap-4"
+        >
           <label class="flex items-center gap-1">
             <input type="radio" name="cadence" value="once" checked={@cadence == "once"} /> Just once
           </label>
@@ -389,7 +394,7 @@ defmodule MusicStudioWeb.BookingLive do
                 type="button"
                 phx-click="pick_slot"
                 phx-value-start={DateTime.to_iso8601(slot.starts_at)}
-                class="rounded border px-2 py-1 text-center text-sm tabular-nums hover:border-indigo-600"
+                class="rounded border border-gray-300 bg-white px-2 py-2 text-center text-sm tabular-nums shadow-sm transition hover:border-indigo-600 hover:shadow-md active:scale-[.98] sm:py-1"
               >
                 {time_label(slot.starts_at)}
               </button>
@@ -405,8 +410,11 @@ defmodule MusicStudioWeb.BookingLive do
           </p>
 
           <div class="mt-3 space-y-3">
-            <div :for={day <- representative_week()} class="flex items-start gap-3">
-              <span class="w-24 shrink-0 pt-1.5 text-sm font-medium text-gray-700">
+            <div
+              :for={day <- representative_week()}
+              class="flex flex-col gap-1.5 border-b border-gray-100 pb-3 last:border-0 last:pb-0 sm:flex-row sm:items-start sm:gap-3 sm:border-0 sm:pb-0"
+            >
+              <span class="text-sm font-semibold text-gray-800 sm:w-24 sm:shrink-0 sm:pt-1.5 sm:font-medium sm:text-gray-700">
                 {Calendar.strftime(day, "%A")}
               </span>
               <div class="grid flex-1 grid-cols-3 gap-2 sm:grid-cols-6">
@@ -416,9 +424,10 @@ defmodule MusicStudioWeb.BookingLive do
                   phx-click="pick_pattern"
                   phx-value-start={DateTime.to_iso8601(slot.starts_at)}
                   class={[
-                    "rounded border px-2 py-1 text-center text-sm tabular-nums hover:border-indigo-600",
-                    pattern_selected?(@rec_pattern, slot.starts_at) &&
-                      "border-indigo-600 bg-indigo-600 text-white"
+                    "rounded border px-2 py-2 text-center text-sm tabular-nums shadow-sm transition hover:shadow-md active:scale-[.98] sm:py-1",
+                    (pattern_selected?(@rec_pattern, slot.starts_at) &&
+                       "border-indigo-600 bg-indigo-600 text-white shadow-md") ||
+                      "border-gray-300 bg-white text-gray-900 hover:border-indigo-600"
                   ]}
                 >
                   {time_label(slot.starts_at)}
@@ -464,7 +473,7 @@ defmodule MusicStudioWeb.BookingLive do
             <button
               type="button"
               phx-click="to_details"
-              class="mt-3 rounded bg-indigo-600 px-4 py-2 text-white"
+              class="mt-3 w-full rounded-lg bg-indigo-600 px-4 py-2.5 font-medium text-white shadow-sm transition hover:bg-indigo-700 hover:shadow-md active:scale-[.98] sm:w-auto"
             >
               Continue
             </button>
