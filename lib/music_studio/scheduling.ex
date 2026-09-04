@@ -23,8 +23,14 @@ defmodule MusicStudio.Scheduling do
         from: from_date,
         to: to_date
       }) do
-    time_min = DateTime.new!(from_date, ~T[00:00:00], "Etc/UTC")
-    time_max = DateTime.new!(to_date, ~T[23:59:59], "Etc/UTC")
+    # The booked/held query window must cover the full UTC span the working-hour blocks
+    # occupy. Studio hours are in a local tz (America/Vancouver, behind UTC), so evening
+    # slots fall on the NEXT UTC day (7pm PT = 02:00–03:00 UTC) — a naive same-date
+    # 23:59:59 time_max misses those bookings and would offer already-booked evening slots
+    # as free (double-booking). Pad a day on each side; Availability.compute does the
+    # precise overlap check, so a wider window is always safe, just slightly more query work.
+    time_min = DateTime.new!(Date.add(from_date, -1), ~T[00:00:00], "Etc/UTC")
+    time_max = DateTime.new!(Date.add(to_date, 1), ~T[23:59:59], "Etc/UTC")
 
     slots =
       Availability.compute(%{
@@ -108,7 +114,8 @@ defmodule MusicStudio.Scheduling do
 
   @spec create_series(map()) :: {:ok, map()} | {:error, term()}
   def create_series(params) do
-    with {:ok, teacher} <- fetch_teacher(),
+    with :ok <- validate_contact(params),
+         {:ok, teacher} <- fetch_teacher(),
          {:ok, instrument} <- fetch_instrument(params.instrument_slug),
          {:ok, offering} <- fetch_offering(params.duration_minutes),
          {:ok, preview} <- preview_series(params) do
@@ -245,7 +252,8 @@ defmodule MusicStudio.Scheduling do
 
   @spec create_booking(map()) :: {:ok, Lesson.t()} | {:error, term()}
   def create_booking(params) do
-    with {:ok, teacher} <- fetch_teacher(),
+    with :ok <- validate_contact(params),
+         {:ok, teacher} <- fetch_teacher(),
          {:ok, instrument} <- fetch_instrument(params.instrument_slug),
          {:ok, offering} <- fetch_offering(params.duration_minutes) do
       ends_at = DateTime.add(params.starts_at, params.duration_minutes, :minute)
@@ -546,6 +554,19 @@ defmodule MusicStudio.Scheduling do
       timezone: cfg(:studio_timezone)
     }
   end
+
+  # Server-side required-contact check. The booking form marks name/email `required`, but
+  # that is client-side only — a crafted request without them must fail cleanly, not crash
+  # the transaction (upsert_student would call String.split(nil, ...) and raise).
+  defp validate_contact(params) do
+    cond do
+      blank?(Map.get(params, :name)) -> {:error, :name_required}
+      blank?(Map.get(params, :email)) -> {:error, :email_required}
+      true -> :ok
+    end
+  end
+
+  defp blank?(value), do: value |> to_string() |> String.trim() == ""
 
   defp upsert_student(params) do
     case Teaching.get_student_by_email(params.email) do

@@ -163,6 +163,9 @@ defmodule MusicStudioWeb.BookingLive do
          |> put_flash(:error, "Sorry — that time was just taken. Please pick another.")
          |> assign(selected_slot: nil, step: :schedule)}
 
+      {:error, contact} when contact in [:name_required, :email_required] ->
+        {:noreply, put_flash(socket, :error, "Please enter your name and email.")}
+
       {:error, _} ->
         {:noreply, put_flash(socket, :error, "Something went wrong. Please try again.")}
     end
@@ -183,6 +186,9 @@ defmodule MusicStudioWeb.BookingLive do
       {:ok, %{lessons: lessons, conflicted: conflicted}} ->
         summary = %{count: length(lessons), conflicted: conflicted}
         {:noreply, assign(socket, booked_series: summary, step: :done)}
+
+      {:error, contact} when contact in [:name_required, :email_required] ->
+        {:noreply, put_flash(socket, :error, "Please enter your name and email.")}
 
       {:error, _} ->
         {:noreply, put_flash(socket, :error, "Something went wrong. Please try again.")}

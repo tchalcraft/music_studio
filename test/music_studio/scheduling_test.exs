@@ -91,6 +91,56 @@ defmodule MusicStudio.SchedulingTest do
     end)
   end
 
+  test "an evening booking is excluded from later availability (UTC day-boundary regression)" do
+    # Regression for the double-booking bug: 7pm America/Vancouver is ~02:00 UTC the NEXT
+    # day. A single-day availability query whose window ended at date 23:59:59 UTC missed
+    # such bookings and offered the slot as free. Book a Fri-evening slot, then confirm the
+    # same slot is no longer listed as available.
+    stub_google(fn conn -> Req.Test.json(conn, %{"id" => "evt-1"}) end)
+
+    # 2026-09-11 is a Friday; 19:00 Vancouver (PDT, UTC-7) = 2026-09-12 02:00 UTC.
+    evening = DateTime.new!(~D[2026-09-12], ~T[02:00:00], "Etc/UTC")
+
+    assert {:ok, _} =
+             Scheduling.create_booking(%{
+               instrument_slug: "piano",
+               duration_minutes: 60,
+               starts_at: evening,
+               name: "Eve Ning",
+               email: "eve@example.com",
+               phone: nil
+             })
+
+    {:ok, slots} =
+      Scheduling.list_available_slots(%{
+        instrument_slug: "piano",
+        duration_minutes: 60,
+        from: ~D[2026-09-11],
+        to: ~D[2026-09-11]
+      })
+
+    refute Enum.any?(slots, &(DateTime.compare(&1.starts_at, evening) == :eq)),
+           "the booked 7pm PT slot must not be offered as available"
+  end
+
+  test "create_booking returns a clean error (no crash) when the name is missing" do
+    for bad <- [%{name: nil}, %{name: ""}, %{name: "   "}] do
+      attrs =
+        Map.merge(
+          %{
+            instrument_slug: "piano",
+            duration_minutes: 60,
+            starts_at: DateTime.new!(~D[2026-09-10], ~T[22:00:00], "Etc/UTC"),
+            email: "x@example.com",
+            phone: nil
+          },
+          bad
+        )
+
+      assert {:error, :name_required} = Scheduling.create_booking(attrs)
+    end
+  end
+
   defp flush_emails do
     receive do
       {:email, _} -> flush_emails()
