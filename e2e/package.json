@@ -1,0 +1,14 @@
+{
+  "name": "music-studio-e2e",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Bombadil browser property tests for the music_studio site (inquiry + booking flows).",
+  "type": "module",
+  "scripts": {
+    "test:browser": "bombadil browser test --time-limit=2m --output-path ./results",
+    "test:browser:local": "bombadil browser test --time-limit=2m --output-path ./results http://localhost:4000"
+  },
+  "devDependencies": {
+    "@antithesishq/bombadil": "^0.7.2"
+  }
+}

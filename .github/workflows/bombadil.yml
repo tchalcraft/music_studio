@@ -1,0 +1,58 @@
+# Bombadil browser property tests against the LIVE site — a manual post-deploy smoke test.
+#
+# NOT a deploy gate. Deploys are manual; run this by hand (Actions tab → "Run workflow")
+# right after each manual Render deploy to check the inquiry + booking flows on the real
+# site. GitHub runners can reach tristanchalcraftmusic.com (a Databricks-network machine
+# can't) and can install from npm (also blocked on the corporate network), which is why
+# this lives in CI. A weekly schedule catches drift/regressions between deploys.
+name: Bombadil (browser)
+
+on:
+  workflow_dispatch:
+    inputs:
+      origin:
+        description: "Target origin to test"
+        required: true
+        default: "https://tristanchalcraftmusic.com"
+      time_limit:
+        description: "Exploration time limit (e.g. 2m, 5m)"
+        required: true
+        default: "2m"
+  schedule:
+    # Mondays 13:00 UTC — a light weekly drift check.
+    - cron: "0 13 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  browser-props:
+    name: Bombadil property exploration
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        working-directory: e2e
+        run: npm install
+
+      # First run validates the specs against the installed Bombadil version; expand after.
+      - name: Run Bombadil against the target site
+        working-directory: e2e
+        env:
+          ORIGIN: ${{ github.event.inputs.origin || 'https://tristanchalcraftmusic.com' }}
+          TIME_LIMIT: ${{ github.event.inputs.time_limit || '2m' }}
+        run: npx bombadil browser test --time-limit="$TIME_LIMIT" --output-path ./results "$ORIGIN"
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bombadil-results
+          path: e2e/results
+          if-no-files-found: warn

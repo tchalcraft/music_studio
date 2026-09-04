@@ -89,6 +89,21 @@ Framework guidance is split into skills under `.claude/skills/` (mirrored to
 `.agents/skills/`), each loading by trigger. See `AGENTS.md` for the project overview,
 stack, and commands.
 
+## Testing & CI
+
+- **`mix precommit`** is the local gate (compile-as-errors, skills sync, format, gettext,
+  Credo, Sobelow, tests). Run it before pushing.
+- **Property tests:** `stream_data` powers `test/music_studio/scheduling/availability_property_test.exs`,
+  asserting the booking-availability invariants (grid alignment, block containment,
+  min-notice, no-overlap-with-buffer) hold for generated inputs.
+- **Browser property tests:** `e2e/` holds [Bombadil](https://antithesishq.github.io/bombadil/browser/1-introduction.html)
+  specs that drive a real browser against the inquiry + booking flows. See `e2e/README.md`.
+- **GitHub Actions** (`.github/workflows/`): `ci.yml` runs `mix precommit` on every push/PR
+  to `main` — a **regression net, not a deploy gate** (deploys stay manual). `bombadil.yml`
+  is a **manual** (`workflow_dispatch`) + weekly job that runs the browser specs against the
+  live site — a post-deploy smoke test (GH runners can reach the domain; a corporate-network
+  machine can't).
+
 ## Deploying
 
 **Live at [tristanchalcraftmusic.com](https://tristanchalcraftmusic.com).** Production runs

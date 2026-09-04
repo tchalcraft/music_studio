@@ -1,0 +1,68 @@
+# Regression net — NOT a deploy gate. Deploys are triggered manually (Render auto-deploy
+# is off), so this workflow only runs the `mix precommit` quality gate on every push/PR to
+# main to catch breakage (like the booking double-booking / crash bugs) before you choose
+# to deploy.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  precommit:
+    name: mix precommit
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: music_studio_test
+        ports: ["5432:5432"]
+        # Wait until Postgres is ready before the job's steps run.
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      MIX_ENV: test
+      # config/test.exs points MusicStudio.Repo at postgres/postgres@localhost; the service
+      # above is mapped to localhost:5432, so no DATABASE_URL is needed. Tests stub Google,
+      # Stripe, and email — no real secrets required.
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Elixir/OTP pinned to match .tool-versions (Elixir 1.18.4 / OTP 28).
+      - name: Set up Elixir/OTP
+        uses: erlef/setup-beam@v1
+        with:
+          otp-version: "28"
+          elixir-version: "1.18.4"
+
+      - name: Cache deps and _build
+        uses: actions/cache@v4
+        with:
+          path: |
+            deps
+            _build
+          key: ${{ runner.os }}-mix-${{ hashFiles('**/mix.lock') }}
+          restore-keys: ${{ runner.os }}-mix-
+
+      - name: Install dependencies
+        run: mix deps.get
+
+      # The full quality gate defined in mix.exs: compile (warnings-as-errors), skills.check,
+      # unused-deps, format, gettext check, Credo --strict, Sobelow, and the test suite
+      # (incl. the StreamData property tests).
+      - name: mix precommit
+        run: mix precommit
