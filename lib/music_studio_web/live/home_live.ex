@@ -109,6 +109,13 @@ defmodule MusicStudioWeb.HomeLive do
           <div class="ms-container">
             <p class="ms-eyebrow">About</p>
             <h2 class="ms-h2" style="margin-top:0.75rem">Meet your teacher</h2>
+            <img
+              src={~p"/images/tristan.jpeg"}
+              alt="Tristan Chalcraft"
+              class="ms-avatar"
+              width="176"
+              height="176"
+            />
             <div
               class="ms-grid"
               style="margin-top:2rem;grid-template-columns:1fr;gap:2.5rem"
@@ -157,21 +164,36 @@ defmodule MusicStudioWeb.HomeLive do
 
             <div class="ms-grid ms-grid--3" style="margin-top:2rem">
               <div class="ms-card">
-                <div class="ms-card__title">Voice</div>
+                <div class="ms-card__title" style="display:flex;align-items:center;gap:0.5rem">
+                  <span style="color:var(--ms-accent-text);display:inline-flex">
+                    <.icon name="hero-musical-note" class="size-5" />
+                  </span>
+                  Voice
+                </div>
                 <p class="ms-prose" style="margin-top:0.5rem">
                   Technique, breath, and repertoire across classical and contemporary
                   styles — from first lessons to audition prep.
                 </p>
               </div>
               <div class="ms-card">
-                <div class="ms-card__title">Piano</div>
+                <div class="ms-card__title" style="display:flex;align-items:center;gap:0.5rem">
+                  <span style="color:var(--ms-accent-text);display:inline-flex">
+                    <.icon name="hero-musical-note" class="size-5" />
+                  </span>
+                  Piano
+                </div>
                 <p class="ms-prose" style="margin-top:0.5rem">
                   Fundamentals, reading, and musicianship at the keyboard, tailored to
                   each student's goals and pace.
                 </p>
               </div>
               <div class="ms-card">
-                <div class="ms-card__title">Guitar</div>
+                <div class="ms-card__title" style="display:flex;align-items:center;gap:0.5rem">
+                  <span style="color:var(--ms-accent-text);display:inline-flex">
+                    <.icon name="hero-musical-note" class="size-5" />
+                  </span>
+                  Guitar
+                </div>
                 <p class="ms-prose" style="margin-top:0.5rem">
                   Chords, technique, and songs on acoustic or electric guitar — for
                   beginner to intermediate players just starting out or picking it back up.
