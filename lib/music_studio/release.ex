@@ -26,14 +26,18 @@ defmodule MusicStudio.Release do
   """
   def seed do
     load_app()
+    seeds = Application.app_dir(@app, "priv/repo/seeds.exs")
 
     for repo <- repos() do
-      {:ok, _, _} =
-        Ecto.Migrator.with_repo(repo, fn _repo ->
-          seeds = Application.app_dir(@app, "priv/repo/seeds.exs")
-          if File.exists?(seeds), do: Code.eval_file(seeds)
-        end)
+      {:ok, _, _} = Ecto.Migrator.with_repo(repo, fn _repo -> eval_seeds(seeds) end)
     end
+  end
+
+  # sobelow_skip ["RCE.CodeModule"]
+  # `seeds` is a fixed release path (Application.app_dir/2 → priv/repo/seeds.exs),
+  # never user input — this is the standard Phoenix release-seeding idiom, not RCE.
+  defp eval_seeds(seeds) do
+    if File.exists?(seeds), do: Code.eval_file(seeds)
   end
 
   defp repos do
