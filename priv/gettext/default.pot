@@ -16,18 +16,18 @@ msgstr ""
 msgid "Actions"
 msgstr ""
 
-#: lib/music_studio_web/components/layouts.ex:102
-#: lib/music_studio_web/components/layouts.ex:117
+#: lib/music_studio_web/components/layouts.ex:104
+#: lib/music_studio_web/components/layouts.ex:119
 #, elixir-autogen, elixir-format
 msgid "Attempting to reconnect"
 msgstr ""
 
-#: lib/music_studio_web/components/layouts.ex:109
+#: lib/music_studio_web/components/layouts.ex:111
 #, elixir-autogen, elixir-format
 msgid "Something went wrong!"
 msgstr ""
 
-#: lib/music_studio_web/components/layouts.ex:94
+#: lib/music_studio_web/components/layouts.ex:96
 #, elixir-autogen, elixir-format
 msgid "We can't find the internet"
 msgstr ""

@@ -3,7 +3,7 @@ defmodule MusicStudio.SchedulingTest do
   import Swoosh.TestAssertions
   import MusicStudio.SchedulingStubs
 
-  alias MusicStudio.{Catalog, Teaching}
+  alias MusicStudio.{Analytics, Catalog, Teaching}
   alias MusicStudio.Scheduling
 
   setup do
@@ -139,6 +139,56 @@ defmodule MusicStudio.SchedulingTest do
 
       assert {:error, :name_required} = Scheduling.create_booking(attrs)
     end
+  end
+
+  test "cancelling a booking emits a lesson_cancelled analytics event" do
+    stub_google(fn conn -> Req.Test.json(conn, %{"id" => "evt-1"}) end)
+
+    starts = DateTime.new!(~D[2026-09-10], ~T[22:00:00], "Etc/UTC")
+
+    {:ok, lesson} =
+      Scheduling.create_booking(%{
+        instrument_slug: "piano",
+        duration_minutes: 60,
+        starts_at: starts,
+        name: "Sam Lee",
+        email: "sam@example.com",
+        phone: nil
+      })
+
+    flush_emails()
+
+    assert {:ok, cancelled} = Scheduling.cancel_booking(lesson.booking_token)
+
+    events = Analytics.list_events_for("lesson", cancelled.id)
+    assert Enum.any?(events, fn e -> e.verb == "lesson_cancelled" end)
+  end
+
+  test "rescheduling a booking emits a lesson_rescheduled analytics event" do
+    stub_google(fn conn -> Req.Test.json(conn, %{"id" => "evt-1"}) end)
+
+    starts = DateTime.new!(~D[2026-09-10], ~T[22:00:00], "Etc/UTC")
+
+    {:ok, lesson} =
+      Scheduling.create_booking(%{
+        instrument_slug: "piano",
+        duration_minutes: 60,
+        starts_at: starts,
+        name: "Sam Lee",
+        email: "sam@example.com",
+        phone: nil
+      })
+
+    flush_emails()
+
+    new_starts = DateTime.new!(~D[2026-09-11], ~T[22:00:00], "Etc/UTC")
+
+    assert {:ok, rescheduled} = Scheduling.reschedule_booking(lesson.booking_token, new_starts)
+
+    events = Analytics.list_events_for("lesson", rescheduled.id)
+    rescheduled_event = Enum.find(events, fn e -> e.verb == "lesson_rescheduled" end)
+    assert rescheduled_event != nil
+    assert rescheduled_event.metadata["instrument"] == lesson.instrument_id
   end
 
   defp flush_emails do

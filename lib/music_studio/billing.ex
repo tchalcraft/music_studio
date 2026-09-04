@@ -5,10 +5,13 @@ defmodule MusicStudio.Billing do
   """
   import Ecto.Query, warn: false
 
+  alias MusicStudio.Analytics
   alias MusicStudio.Billing.Invoice
   alias MusicStudio.Billing.InvoiceLineItem
   alias MusicStudio.Billing.Payment
   alias MusicStudio.Repo
+
+  require Logger
 
   ## Invoices
 
@@ -20,7 +23,36 @@ defmodule MusicStudio.Billing do
 
   def change_invoice(%Invoice{} = i \\ %Invoice{}, attrs \\ %{}), do: Invoice.changeset(i, attrs)
 
-  def create_invoice(attrs \\ %{}), do: %Invoice{} |> Invoice.changeset(attrs) |> Repo.insert()
+  def create_invoice(attrs \\ %{}) do
+    case %Invoice{} |> Invoice.changeset(attrs) |> Repo.insert() do
+      {:ok, invoice} ->
+        best_effort_emit(fn ->
+          Analytics.record_event(%{
+            verb: "invoice_created",
+            subject_type: "invoice",
+            subject_id: invoice.id,
+            metadata: %{
+              "status" => to_string(invoice.status),
+              "total_cents" => invoice.total_cents,
+              "currency" => invoice.currency
+            }
+          })
+        end)
+
+        {:ok, invoice}
+
+      error ->
+        error
+    end
+  end
+
+  defp best_effort_emit(fun) do
+    fun.()
+  rescue
+    e ->
+      Logger.error("invoice analytics emit failed: #{Exception.message(e)}")
+      {:error, e}
+  end
 
   def update_invoice(%Invoice{} = i, attrs), do: i |> Invoice.changeset(attrs) |> Repo.update()
 

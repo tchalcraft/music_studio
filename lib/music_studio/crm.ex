@@ -6,12 +6,15 @@ defmodule MusicStudio.CRM do
   """
   import Ecto.Query, warn: false
 
+  alias MusicStudio.Analytics
   alias MusicStudio.CRM.Campaign
   alias MusicStudio.CRM.Touchpoint
   alias MusicStudio.Leads.Lead
   alias MusicStudio.Repo
   alias MusicStudio.Teaching
   alias MusicStudio.Teaching.Student
+
+  require Logger
 
   ## Campaigns
 
@@ -60,17 +63,44 @@ defmodule MusicStudio.CRM do
 
     attrs = Map.merge(derived, student_attrs)
 
-    Repo.transaction(fn ->
-      with {:ok, %Student{} = student} <- Teaching.create_student(attrs),
-           {:ok, updated_lead} <-
-             lead
-             |> Lead.funnel_changeset(%{status: :converted, converted_student_id: student.id})
-             |> Repo.update() do
-        {student, updated_lead}
-      else
-        {:error, changeset} -> Repo.rollback(changeset)
-      end
-    end)
+    result =
+      Repo.transaction(fn ->
+        with {:ok, %Student{} = student} <- Teaching.create_student(attrs),
+             {:ok, updated_lead} <-
+               lead
+               |> Lead.funnel_changeset(%{status: :converted, converted_student_id: student.id})
+               |> Repo.update() do
+          {student, updated_lead}
+        else
+          {:error, changeset} -> Repo.rollback(changeset)
+        end
+      end)
+
+    case result do
+      {:ok, {student, updated_lead}} ->
+        best_effort_emit(fn ->
+          Analytics.record_event(%{
+            verb: "lead_converted",
+            subject_type: "lead",
+            subject_id: lead.id,
+            metadata: %{"student_id" => student.id}
+          })
+        end)
+
+        {:ok, {student, updated_lead}}
+
+      error ->
+        error
+    end
+  end
+
+  # Best-effort emit: never let a failed event insert crash the conversion.
+  defp best_effort_emit(fun) do
+    fun.()
+  rescue
+    e ->
+      Logger.error("conversion analytics emit failed: #{Exception.message(e)}")
+      {:error, e}
   end
 
   # Naively split a lead's single name field into first/last for the derived student.

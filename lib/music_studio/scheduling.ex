@@ -301,6 +301,16 @@ defmodule MusicStudio.Scheduling do
   defp do_cancel(lesson) do
     {:ok, cancelled} = cancel_lesson_record(lesson)
     side_effect(fn -> Notifier.deliver_cancellation(lesson_email_details(lesson)) end)
+
+    side_effect(fn ->
+      Analytics.record_event(%{
+        verb: "lesson_cancelled",
+        subject_type: "lesson",
+        subject_id: cancelled.id,
+        metadata: %{"instrument" => cancelled.instrument_id}
+      })
+    end)
+
     {:ok, cancelled}
   end
 
@@ -346,6 +356,18 @@ defmodule MusicStudio.Scheduling do
                 scheduled_end: updated.scheduled_end
             })
           )
+        end)
+
+        side_effect(fn ->
+          Analytics.record_event(%{
+            verb: "lesson_rescheduled",
+            subject_type: "lesson",
+            subject_id: updated.id,
+            metadata: %{
+              "instrument" => updated.instrument_id,
+              "new_start" => DateTime.to_iso8601(updated.scheduled_start)
+            }
+          })
         end)
 
         {:ok, updated}
@@ -408,8 +430,22 @@ defmodule MusicStudio.Scheduling do
   @spec cancel_series(String.t()) :: {:ok, Enrollment.t()} | {:error, term()}
   def cancel_series(series_token) do
     case get_series_by_token(series_token) do
-      nil -> {:error, :not_found}
-      enrollment -> do_cancel_series(enrollment)
+      nil ->
+        {:error, :not_found}
+
+      enrollment ->
+        {:ok, cancelled} = do_cancel_series(enrollment)
+
+        side_effect(fn ->
+          Analytics.record_event(%{
+            verb: "series_cancelled",
+            subject_type: "enrollment",
+            subject_id: cancelled.id,
+            metadata: %{}
+          })
+        end)
+
+        {:ok, cancelled}
     end
   end
 
@@ -431,6 +467,15 @@ defmodule MusicStudio.Scheduling do
             {:ok, l} = cancel_lesson_record(lesson)
             l
           end)
+
+        side_effect(fn ->
+          Analytics.record_event(%{
+            verb: "series_paused",
+            subject_type: "enrollment",
+            subject_id: enrollment.id,
+            metadata: %{"skipped_count" => length(skipped)}
+          })
+        end)
 
         {:ok, %{skipped: skipped}}
     end

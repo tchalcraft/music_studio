@@ -60,9 +60,10 @@ defmodule MusicStudio.Billing.CheckoutTest do
     test "records an analytics event", %{invoice: invoice} do
       assert {:ok, _payment} = Checkout.fulfill_session(session_for(invoice))
 
-      assert [event] = Analytics.list_events_for("invoice", invoice.id)
-      assert event.verb == "invoice_paid"
-      assert event.metadata["method"] == "stripe"
+      events = Analytics.list_events_for("invoice", invoice.id)
+      paid_event = Enum.find(events, fn e -> e.verb == "invoice_paid" end)
+      assert paid_event != nil
+      assert paid_event.metadata["method"] == "stripe"
     end
 
     test "is idempotent on the checkout session id", %{invoice: invoice} do

@@ -1,6 +1,7 @@
 defmodule MusicStudio.CRMTest do
   use MusicStudio.DataCase, async: true
 
+  alias MusicStudio.Analytics
   alias MusicStudio.CRM
   alias MusicStudio.CRM.Campaign
   alias MusicStudio.CRM.Touchpoint
@@ -23,6 +24,19 @@ defmodule MusicStudio.CRMTest do
 
     # Reloading the lead confirms the funnel fields persisted.
     assert Repo.get!(Leads.Lead, lead.id).status == :converted
+  end
+
+  test "convert_lead_to_student/2 emits a lead_converted analytics event" do
+    {:ok, lead} =
+      Leads.create_lead(%{name: "Jamie Note", email: "jamie@example.com", instrument: "piano"})
+
+    assert {:ok, {%Student{} = student, _updated_lead}} = CRM.convert_lead_to_student(lead)
+
+    events = Analytics.list_events_for("lead", lead.id)
+    converted_event = Enum.find(events, fn e -> e.verb == "lead_converted" end)
+    assert converted_event != nil
+    assert converted_event.subject_id == to_string(lead.id)
+    assert converted_event.metadata["student_id"] == student.id
   end
 
   test "campaigns and touchpoints persist" do

@@ -9,9 +9,19 @@
       suffix=" · Tristan Chalcraft Music"
       phx-no-format
     >{assigns[:page_title]}</.live_title>
+    <.seo_meta_tags
+      page_title={assigns[:page_title] || "Tristan Chalcraft Music"}
+      meta_description={assigns[:meta_description]}
+      og_title={assigns[:og_title]}
+      og_description={assigns[:og_description]}
+      og_image={assigns[:og_image]}
+      og_type={assigns[:og_type]}
+      canonical_url={assigns[:canonical_url]}
+    />
     <link phx-track-static rel="stylesheet" href={~p"/assets/css/app.css"} />
     <script defer phx-track-static type="text/javascript" src={~p"/assets/js/app.js"}>
     </script>
+    <.music_school_schema />
     <script>
       (() => {
         const systemTheme = () => matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";

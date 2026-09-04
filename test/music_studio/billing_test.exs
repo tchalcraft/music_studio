@@ -1,6 +1,7 @@
 defmodule MusicStudio.BillingTest do
   use MusicStudio.DataCase, async: true
 
+  alias MusicStudio.Analytics
   alias MusicStudio.Billing
   alias MusicStudio.Billing.Invoice
   alias MusicStudio.Billing.Payment
@@ -61,5 +62,26 @@ defmodule MusicStudio.BillingTest do
              })
 
     assert "can't be blank" in errors_on(changeset).invoice_id
+  end
+
+  test "creating an invoice emits an invoice_created analytics event" do
+    {:ok, guardian} = Teaching.create_guardian(%{first_name: "Pat", last_name: "Payer"})
+
+    assert {:ok, %Invoice{} = invoice} =
+             Billing.create_invoice(%{
+               guardian_id: guardian.id,
+               status: :open,
+               currency: "CAD",
+               subtotal_cents: 6000,
+               total_cents: 6000,
+               issued_on: Date.utc_today()
+             })
+
+    events = Analytics.list_events_for("invoice", invoice.id)
+    assert Enum.any?(events, fn e -> e.verb == "invoice_created" end)
+
+    created_event = Enum.find(events, fn e -> e.verb == "invoice_created" end)
+    assert created_event.metadata["status"] == "open"
+    assert created_event.metadata["total_cents"] == 6000
   end
 end

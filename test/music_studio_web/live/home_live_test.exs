@@ -54,4 +54,17 @@ defmodule MusicStudioWeb.HomeLiveTest do
     assert html =~ "must be a valid email"
     assert Leads.list_leads() == []
   end
+
+  test "the page includes meta tags for SEO", %{conn: conn} do
+    {:ok, _lv, html} = live(conn, ~p"/")
+
+    assert html =~ "name=\"description\""
+    assert html =~ "property=\"og:title\""
+    assert html =~ "property=\"og:description\""
+    assert html =~ "property=\"og:type\""
+    assert html =~ "name=\"twitter:card\" content=\"summary_large_image\""
+    assert html =~ "type=\"application/ld+json\""
+    assert html =~ "@context"
+    assert html =~ "MusicSchool"
+  end
 end

@@ -10,8 +10,11 @@ defmodule MusicStudio.Leads do
   """
   import Ecto.Query, only: [from: 2]
 
+  alias MusicStudio.Analytics
   alias MusicStudio.Leads.Lead
   alias MusicStudio.Repo
+
+  require Logger
 
   @doc "Lists inquiries, newest first."
   def list_leads do
@@ -33,8 +36,35 @@ defmodule MusicStudio.Leads do
   the caller's responsibility (see `MusicStudio.Leads.Notifier`).
   """
   def create_lead(attrs \\ %{}) do
-    %Lead{}
-    |> Lead.changeset(attrs)
-    |> Repo.insert()
+    case %Lead{}
+         |> Lead.changeset(attrs)
+         |> Repo.insert() do
+      {:ok, lead} ->
+        best_effort_emit(fn ->
+          Analytics.record_event(%{
+            verb: "lead_created",
+            subject_type: "lead",
+            subject_id: lead.id,
+            metadata: %{
+              "instrument" => lead.instrument,
+              "source" => "inquiry_form"
+            }
+          })
+        end)
+
+        {:ok, lead}
+
+      error ->
+        error
+    end
+  end
+
+  # Best-effort emit: never let a failed event insert crash the lead creation.
+  defp best_effort_emit(fun) do
+    fun.()
+  rescue
+    e ->
+      Logger.error("lead analytics emit failed: #{Exception.message(e)}")
+      {:error, e}
   end
 end

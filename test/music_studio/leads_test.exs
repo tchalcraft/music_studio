@@ -3,6 +3,7 @@ defmodule MusicStudio.LeadsTest do
 
   import Swoosh.TestAssertions
 
+  alias MusicStudio.Analytics
   alias MusicStudio.Leads
   alias MusicStudio.Leads.Lead
   alias MusicStudio.Leads.Notifier
@@ -21,6 +22,17 @@ defmodule MusicStudio.LeadsTest do
       assert lead.email == "jane@example.com"
       assert lead.instrument == "voice"
       assert lead.message == "Interested in weekly voice lessons"
+    end
+
+    test "emits a lead_created analytics event" do
+      assert {:ok, %Lead{} = lead} = Leads.create_lead(@valid)
+
+      events = Analytics.list_events_for("lead", lead.id)
+      assert length(events) == 1
+      assert hd(events).verb == "lead_created"
+      assert hd(events).subject_type == "lead"
+      assert hd(events).metadata["instrument"] == "voice"
+      assert hd(events).metadata["source"] == "inquiry_form"
     end
 
     test "requires name, email, and instrument" do
