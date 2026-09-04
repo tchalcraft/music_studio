@@ -112,7 +112,9 @@ USER nobody
 # above and adding an entrypoint. See https://github.com/krallin/tini for details
 # ENTRYPOINT ["/tini", "--"]
 
-# Run pending migrations, then start the server. Migrate-on-boot keeps this working on
-# any Render plan (the free tier has no pre-deploy hook) and is idempotent — already-applied
-# migrations are a fast no-op. Single free instance, so no migration race.
-CMD ["/bin/sh", "-c", "/app/bin/migrate && /app/bin/server"]
+# On boot: migrate, seed catalog reference data, then start the server. Migrate + seed are
+# both idempotent, keeping this working on any Render plan (the free tier has no pre-deploy
+# hook) with no migration race (single free instance). Seeding is required — without the
+# catalog (instruments/offerings/teacher) the booking page has nothing to pick and no one
+# can book; see MusicStudio.Release.seed/0.
+CMD ["/bin/sh", "-c", "/app/bin/migrate && /app/bin/seed && /app/bin/server"]
