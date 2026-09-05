@@ -15,6 +15,7 @@ defmodule MusicStudio.Scheduling.NotifierTest do
       manage_url: "http://localhost:4000/book/manage/tok",
       uid: "uid-1",
       organizer_email: "tristan@example.com",
+      organizer_name: "Tristan Chalcraft",
       timezone: "America/Vancouver"
     }
   end
@@ -27,6 +28,15 @@ defmodule MusicStudio.Scheduling.NotifierTest do
         is_binary(email.html_body) and email.html_body =~ "Tristan" and
         is_binary(email.text_body) and
         Enum.any?(email.attachments, &(&1.content_type == "text/calendar"))
+    end)
+  end
+
+  test "plaintext confirmation includes manage your booking link" do
+    assert {:ok, _} = Notifier.deliver_booking_emails(details())
+
+    assert_email_sent(fn email ->
+      email.to == [{"Sam", "sam@example.com"}] and
+        email.text_body =~ "Manage your booking" and email.text_body =~ "tok"
     end)
   end
 

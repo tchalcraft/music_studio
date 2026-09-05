@@ -21,7 +21,7 @@ defmodule MusicStudio.Scheduling.ICS do
       "SUMMARY:#{escape(a.summary)}",
       "DESCRIPTION:#{escape(a.description)}",
       "LOCATION:#{escape(a.location)}",
-      "ORGANIZER:mailto:#{a.organizer_email}",
+      organizer_line(a.organizer_email, a.organizer_name),
       "ATTENDEE;RSVP=TRUE:mailto:#{a.attendee_email}",
       "STATUS:CONFIRMED",
       "END:VEVENT",
@@ -29,6 +29,21 @@ defmodule MusicStudio.Scheduling.ICS do
     ]
     |> Enum.map(&(&1 <> "\r\n"))
     |> IO.iodata_to_binary()
+  end
+
+  defp organizer_line(email, name) when is_binary(name) and name != "" do
+    "ORGANIZER;CN=\"#{escape_cn(name)}\":mailto:#{email}"
+  end
+
+  defp organizer_line(email, _name) do
+    "ORGANIZER:mailto:#{email}"
+  end
+
+  # Escape double quotes and backslashes for CN parameter value.
+  defp escape_cn(text) do
+    text
+    |> String.replace("\\", "\\\\")
+    |> String.replace("\"", "\\\"")
   end
 
   defp stamp(%DateTime{} = dt) do

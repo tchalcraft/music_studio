@@ -40,13 +40,15 @@ defmodule MusicStudio.Scheduling.Notifier do
 
     extra = [{"Manage your booking", details.manage_url}]
 
+    text_opts = Keyword.put(body_opts, :details, body_opts[:details] ++ extra)
+
     confirmation =
       new()
       |> to({details.visitor_name, details.visitor_email})
       |> from({"Tristan Chalcraft Music", from_addr})
       |> subject("Your #{details.instrument} lesson is booked — #{when_str}")
       |> html_body(EmailTemplate.html(body_opts))
-      |> text_body(EmailTemplate.text(body_opts ++ [details: body_opts[:details] ++ extra]))
+      |> text_body(EmailTemplate.text(text_opts))
       |> attachment(
         Swoosh.Attachment.new({:data, ics},
           filename: "lesson.ics",
@@ -174,6 +176,7 @@ defmodule MusicStudio.Scheduling.Notifier do
       starts_at: d.starts_at,
       ends_at: d.ends_at,
       organizer_email: d.organizer_email || organizer_email,
+      organizer_name: d.organizer_name,
       attendee_email: d.visitor_email,
       now: DateTime.utc_now()
     }
