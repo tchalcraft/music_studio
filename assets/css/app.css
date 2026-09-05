@@ -165,25 +165,15 @@
   top: 0;
   z-index: 50;
   backdrop-filter: saturate(180%) blur(12px);
-  /* Blue site header (GH #10). Slight transparency keeps the frosted-blur feel while
-     staying solidly blue over any page background. */
-  background-color: color-mix(in srgb, #2563eb 92%, transparent);
-  border-bottom: 1px solid #1d4ed8;
-}
-[data-theme="dark"] .ms-nav {
-  background-color: color-mix(in srgb, #1d4ed8 92%, transparent);
-  border-bottom-color: #1e3a8a;
+  background-color: color-mix(in srgb, var(--ms-bg) 80%, transparent);
+  border-bottom: 1px solid var(--ms-border);
 }
 .ms-nav__inner { display: flex; align-items: center; justify-content: space-between; height: 4rem; }
-.ms-nav__brand { font-family: var(--ms-font-display); font-weight: 600; letter-spacing: -0.01em; font-size: 1.05rem; color: #fff; text-decoration: none; }
+.ms-nav__brand { font-family: var(--ms-font-display); font-weight: 600; letter-spacing: -0.01em; font-size: 1.05rem; color: var(--ms-text); text-decoration: none; }
 .ms-nav__links { display: none; gap: 1.75rem; align-items: center; }
 @media (min-width: 640px) { .ms-nav__links { display: flex; } }
-.ms-nav__link { color: rgba(255, 255, 255, 0.85); text-decoration: none; font-size: 0.925rem; font-weight: 500; transition: color .15s; }
-.ms-nav__link:hover { color: #fff; }
-/* CTA inside the blue header: white button, blue text — pops on the blue bar.
-   Scoped to .ms-nav so the primary button elsewhere (hero, contact) is unchanged. */
-.ms-nav .ms-btn--primary { background-color: #fff; color: #1d4ed8; }
-.ms-nav .ms-btn--primary:hover { background-color: rgba(255, 255, 255, 0.9); }
+.ms-nav__link { color: var(--ms-text-muted); text-decoration: none; font-size: 0.925rem; font-weight: 500; transition: color .15s; }
+.ms-nav__link:hover { color: var(--ms-text); }
 
 /* Typography */
 .ms-eyebrow { font-family: var(--ms-font-display); font-size: 0.8rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ms-accent-text); }
