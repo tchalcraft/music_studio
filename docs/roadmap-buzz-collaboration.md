@@ -155,9 +155,10 @@ Buzz relay reads `.env` or environment variables. **Key sections** (verified aga
 
 #### **Database**
 ```bash
-DATABASE_URL=postgresql://user:pass@localhost:5432/buzz_relay
-# Optional: read replica
-READ_DATABASE_URL=postgresql://user:pass@replica-host:5432/buzz_relay
+# A postgres URL of the form: scheme://USER:PASSWORD@HOST:5432/buzz_relay
+DATABASE_URL=<your-buzz-relay-postgres-url>
+# Optional read replica (same URL shape, pointed at the replica host)
+READ_DATABASE_URL=<your-buzz-relay-replica-url>
 # Tuning
 BUZZ_DB_POOL_SIZE=20              # max connections per pool
 BUZZ_DB_STATEMENT_TIMEOUT_MS=5000 # per-statement timeout
