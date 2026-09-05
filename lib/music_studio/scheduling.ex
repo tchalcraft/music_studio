@@ -79,10 +79,26 @@ defmodule MusicStudio.Scheduling do
     time = local_first |> DateTime.to_time() |> Time.truncate(:second)
     term_end = Recurrence.term_end(start_date)
 
+    # Compute availability ONCE across the whole term, then test each weekly occurrence
+    # against it in memory. Previously each occurrence called list_available_slots on its
+    # own (an N+1 of ~43 single-day DB queries) which made this ~14s for a full school
+    # year and blocked the LiveView on every pattern-pick / start-shift.
+    {:ok, slots} =
+      list_available_slots(%{
+        instrument_slug: slug,
+        duration_minutes: duration,
+        from: start_date,
+        to: term_end
+      })
+
+    available = MapSet.new(slots, &DateTime.to_unix(&1.starts_at))
+
     {bookable, conflicted} =
       start_date
       |> Recurrence.occurrence_dates(interval_weeks, term_end)
-      |> Enum.split_with(&week_bookable?(&1, time, tz, slug, duration))
+      |> Enum.split_with(fn date ->
+        MapSet.member?(available, DateTime.to_unix(Recurrence.occurrence_utc(date, time, tz)))
+      end)
 
     {:ok,
      %{
@@ -92,24 +108,6 @@ defmodule MusicStudio.Scheduling do
        bookable: Enum.map(bookable, &Recurrence.occurrence_utc(&1, time, tz)),
        conflicted: Enum.map(conflicted, &Recurrence.occurrence_utc(&1, time, tz))
      }}
-  end
-
-  defp week_bookable?(date, time, tz, slug, duration) do
-    starts = Recurrence.occurrence_utc(date, time, tz)
-    slot_bookable?(slug, duration, date, starts)
-  end
-
-  # True if `starts` is one of the slots availability offers for that single day.
-  defp slot_bookable?(slug, duration, date, starts) do
-    {:ok, slots} =
-      list_available_slots(%{
-        instrument_slug: slug,
-        duration_minutes: duration,
-        from: date,
-        to: date
-      })
-
-    Enum.any?(slots, &(DateTime.compare(&1.starts_at, starts) == :eq))
   end
 
   @spec create_series(map()) :: {:ok, map()} | {:error, term()}
