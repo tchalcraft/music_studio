@@ -212,7 +212,15 @@ defmodule MusicStudio.Scheduling do
     Enum.each(lessons, fn lesson ->
       side_effect(fn ->
         ends_at = DateTime.add(lesson.scheduled_start, lesson.duration_minutes, :minute)
-        write_event(lesson, series.instrument, params, ends_at)
+
+        case write_event(lesson, series.instrument, params, ends_at) do
+          {:ok, event_id} ->
+            {:ok, _updated} =
+              lesson |> Lesson.changeset(%{google_event_id: event_id}) |> Repo.update()
+
+          _ ->
+            :ok
+        end
       end)
     end)
 
@@ -596,6 +604,7 @@ defmodule MusicStudio.Scheduling do
       manage_url: MusicStudioWeb.Endpoint.url() <> "/book/manage/" <> lesson.booking_token,
       uid: lesson.id,
       organizer_email: teacher.email,
+      organizer_name: teacher.name,
       timezone: cfg(:studio_timezone)
     }
   end
@@ -728,6 +737,7 @@ defmodule MusicStudio.Scheduling do
       manage_url: MusicStudioWeb.Endpoint.url() <> "/book/manage/" <> lesson.booking_token,
       uid: lesson.id,
       organizer_email: lesson.teacher && lesson.teacher.email,
+      organizer_name: lesson.teacher && lesson.teacher.name,
       timezone: cfg(:studio_timezone)
     }
   end

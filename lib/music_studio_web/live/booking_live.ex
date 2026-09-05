@@ -260,10 +260,10 @@ defmodule MusicStudioWeb.BookingLive do
             phx-value-slug={i.slug}
             aria-pressed={@instrument_slug == i.slug}
             class={[
-              "rounded-lg border px-4 py-3 text-center shadow-sm transition hover:shadow-md active:scale-[.98]",
+              "cursor-pointer rounded-lg border px-4 py-3 text-center shadow-sm transition-colors active:scale-[.98]",
               (@instrument_slug == i.slug &&
-                 "border-indigo-600 bg-indigo-600 text-white shadow-md") ||
-                "border-gray-300 bg-white text-gray-900 hover:border-indigo-600"
+                 "border-indigo-600 bg-indigo-600 text-white shadow-md dark:border-indigo-400 dark:bg-indigo-500") ||
+                "border-indigo-200 bg-indigo-50 text-indigo-800 hover:border-indigo-600 hover:bg-indigo-600 hover:text-white dark:border-indigo-800 dark:bg-indigo-950 dark:text-indigo-200 dark:hover:bg-indigo-500 dark:hover:text-white"
             ]}
           >
             {i.name}
@@ -279,10 +279,10 @@ defmodule MusicStudioWeb.BookingLive do
             phx-value-minutes={d}
             aria-pressed={@duration_minutes == d}
             class={[
-              "rounded-lg border px-4 py-3 text-center shadow-sm transition hover:shadow-md active:scale-[.98]",
+              "cursor-pointer rounded-lg border px-4 py-3 text-center shadow-sm transition-colors active:scale-[.98]",
               (@duration_minutes == d &&
-                 "border-indigo-600 bg-indigo-600 text-white shadow-md") ||
-                "border-gray-300 bg-white text-gray-900 hover:border-indigo-600"
+                 "border-indigo-600 bg-indigo-600 text-white shadow-md dark:border-indigo-400 dark:bg-indigo-500") ||
+                "border-indigo-200 bg-indigo-50 text-indigo-800 hover:border-indigo-600 hover:bg-indigo-600 hover:text-white dark:border-indigo-800 dark:bg-indigo-950 dark:text-indigo-200 dark:hover:bg-indigo-500 dark:hover:text-white"
             ]}
           >
             {d} min
@@ -297,7 +297,7 @@ defmodule MusicStudioWeb.BookingLive do
             type="button"
             phx-click="back"
             phx-value-to="lesson"
-            class="text-sm text-indigo-700 underline"
+            class="cursor-pointer text-sm text-indigo-700 underline dark:text-indigo-300"
           >
             ← Back
           </button>
@@ -335,7 +335,7 @@ defmodule MusicStudioWeb.BookingLive do
               type="button"
               phx-click="prev_month"
               disabled={!prev_month?(@cal_month)}
-              class="rounded px-2 py-1 text-indigo-700 disabled:text-gray-300"
+              class="cursor-pointer rounded px-2 py-1 text-indigo-700 disabled:cursor-not-allowed disabled:text-gray-300 dark:text-indigo-300"
               aria-label="Previous month"
             >
               ◀
@@ -345,7 +345,7 @@ defmodule MusicStudioWeb.BookingLive do
               type="button"
               phx-click="next_month"
               disabled={!next_month?(@cal_month)}
-              class="rounded px-2 py-1 text-indigo-700 disabled:text-gray-300"
+              class="cursor-pointer rounded px-2 py-1 text-indigo-700 disabled:cursor-not-allowed disabled:text-gray-300 dark:text-indigo-300"
               aria-label="Next month"
             >
               ▶
@@ -367,9 +367,9 @@ defmodule MusicStudioWeb.BookingLive do
                 phx-click="pick_day"
                 phx-value-date={Date.to_iso8601(day)}
                 class={[
-                  "w-full rounded py-1",
-                  (@selected_day == day && "bg-indigo-600 text-white") ||
-                    "font-semibold text-indigo-700 hover:bg-indigo-50"
+                  "w-full cursor-pointer rounded py-1 transition-colors",
+                  (@selected_day == day && "bg-indigo-600 text-white dark:bg-indigo-500") ||
+                    "font-semibold text-indigo-700 hover:bg-indigo-50 dark:text-indigo-300 dark:hover:bg-indigo-900"
                 ]}
               >
                 {day.day}
@@ -394,7 +394,7 @@ defmodule MusicStudioWeb.BookingLive do
                 type="button"
                 phx-click="pick_slot"
                 phx-value-start={DateTime.to_iso8601(slot.starts_at)}
-                class="rounded border border-gray-300 bg-white px-2 py-2 text-center text-sm tabular-nums shadow-sm transition hover:border-indigo-600 hover:shadow-md active:scale-[.98] sm:py-1"
+                class="cursor-pointer rounded border border-indigo-200 bg-indigo-50 px-2 py-2 text-center text-sm tabular-nums text-indigo-800 shadow-sm transition-colors hover:border-indigo-600 hover:bg-indigo-600 hover:text-white active:scale-[.98] dark:border-indigo-800 dark:bg-indigo-950 dark:text-indigo-200 dark:hover:bg-indigo-500 dark:hover:text-white sm:py-1"
               >
                 {time_label(slot.starts_at)}
               </button>
@@ -424,10 +424,10 @@ defmodule MusicStudioWeb.BookingLive do
                   phx-click="pick_pattern"
                   phx-value-start={DateTime.to_iso8601(slot.starts_at)}
                   class={[
-                    "rounded border px-2 py-2 text-center text-sm tabular-nums shadow-sm transition hover:shadow-md active:scale-[.98] sm:py-1",
+                    "cursor-pointer rounded border px-2 py-2 text-center text-sm tabular-nums shadow-sm transition-colors active:scale-[.98] sm:py-1",
                     (pattern_selected?(@rec_pattern, slot.starts_at) &&
-                       "border-indigo-600 bg-indigo-600 text-white shadow-md") ||
-                      "border-gray-300 bg-white text-gray-900 hover:border-indigo-600"
+                       "border-indigo-600 bg-indigo-600 text-white shadow-md dark:border-indigo-400 dark:bg-indigo-500") ||
+                      "border-indigo-200 bg-indigo-50 text-indigo-800 hover:border-indigo-600 hover:bg-indigo-600 hover:text-white dark:border-indigo-800 dark:bg-indigo-950 dark:text-indigo-200 dark:hover:bg-indigo-500 dark:hover:text-white"
                   ]}
                 >
                   {time_label(slot.starts_at)}
@@ -445,7 +445,7 @@ defmodule MusicStudioWeb.BookingLive do
                 type="button"
                 phx-click="start_earlier"
                 disabled={!can_start_earlier?(@series_start, @rec_pattern)}
-                class="rounded px-2 py-1 text-indigo-700 disabled:text-gray-300"
+                class="cursor-pointer rounded px-2 py-1 text-indigo-700 disabled:cursor-not-allowed disabled:text-gray-300 dark:text-indigo-300"
                 aria-label="Earlier start"
               >
                 ◀
@@ -454,7 +454,8 @@ defmodule MusicStudioWeb.BookingLive do
               <button
                 type="button"
                 phx-click="start_later"
-                class="rounded px-2 py-1 text-indigo-700"
+                disabled={!can_start_later?(@series_start, @rec_pattern)}
+                class="cursor-pointer rounded px-2 py-1 text-indigo-700 disabled:cursor-not-allowed disabled:text-gray-300 dark:text-indigo-300"
                 aria-label="Later start"
               >
                 ▶
@@ -473,7 +474,7 @@ defmodule MusicStudioWeb.BookingLive do
             <button
               type="button"
               phx-click="to_details"
-              class="mt-3 w-full rounded-lg bg-indigo-600 px-4 py-2.5 font-medium text-white shadow-sm transition hover:bg-indigo-700 hover:shadow-md active:scale-[.98] sm:w-auto"
+              class="mt-3 w-full cursor-pointer rounded-lg bg-indigo-600 px-4 py-2.5 font-medium text-white shadow-sm transition-colors hover:bg-indigo-700 active:scale-[.98] dark:bg-indigo-500 dark:hover:bg-indigo-400 sm:w-auto"
             >
               Continue
             </button>
@@ -488,7 +489,7 @@ defmodule MusicStudioWeb.BookingLive do
             type="button"
             phx-click="back"
             phx-value-to="schedule"
-            class="text-sm text-indigo-700 underline"
+            class="cursor-pointer text-sm text-indigo-700 underline dark:text-indigo-300"
           >
             ← Back
           </button>
@@ -510,7 +511,10 @@ defmodule MusicStudioWeb.BookingLive do
           <.input field={@form[:name]} label="Your name" required />
           <.input field={@form[:email]} type="email" label="Email" required />
           <.input field={@form[:phone]} label="Phone (optional)" />
-          <button type="submit" class="rounded bg-indigo-600 px-4 py-2 text-white">
+          <button
+            type="submit"
+            class="cursor-pointer rounded-lg bg-indigo-600 px-4 py-2.5 font-medium text-white shadow-sm transition-colors hover:bg-indigo-700 active:scale-[.98] dark:bg-indigo-500 dark:hover:bg-indigo-400"
+          >
             Confirm booking
           </button>
         </.form>
@@ -646,9 +650,26 @@ defmodule MusicStudioWeb.BookingLive do
   defp shift_start(socket, days) do
     weekday = socket.assigns.rec_pattern |> local_date() |> Date.day_of_week()
     floor = default_start(weekday)
+    ceil = last_start(weekday)
     target = Date.add(socket.assigns.series_start, days)
-    clamped = if Date.compare(target, floor) == :lt, do: floor, else: target
+
+    clamped =
+      cond do
+        Date.compare(target, floor) == :lt -> floor
+        Date.compare(target, ceil) == :gt -> ceil
+        true -> target
+      end
+
     assign(socket, :series_start, clamped)
+  end
+
+  # The latest a series may start and still book at least one lesson: the last occurrence
+  # of the pattern's weekday on or before the term end (June 30). Without this ceiling,
+  # "start later" could push the start past term end, yielding a 0-lesson enrollment that
+  # still holds the slot (GH #7).
+  defp last_start(weekday) do
+    term_end = MusicStudio.Scheduling.Recurrence.term_end(default_start(weekday))
+    Date.add(term_end, -rem(Date.day_of_week(term_end) - weekday + 7, 7))
   end
 
   defp can_start_earlier?(nil, _rec_pattern), do: false
@@ -656,6 +677,13 @@ defmodule MusicStudioWeb.BookingLive do
   defp can_start_earlier?(series_start, rec_pattern) do
     weekday = rec_pattern |> local_date() |> Date.day_of_week()
     Date.compare(series_start, default_start(weekday)) == :gt
+  end
+
+  defp can_start_later?(nil, _rec_pattern), do: false
+
+  defp can_start_later?(series_start, rec_pattern) do
+    weekday = rec_pattern |> local_date() |> Date.day_of_week()
+    Date.compare(series_start, last_start(weekday)) == :lt
   end
 
   defp pattern_selected?(nil, _starts_at), do: false

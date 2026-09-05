@@ -69,4 +69,28 @@ defmodule MusicStudio.Scheduling.CreateSeriesTest do
     assert Repo.aggregate(from(l in Lesson, where: l.enrollment_id == ^enr.id), :count) == 4
     assert_email_sent(fn e -> e.subject =~ "lessons" or e.subject =~ "series" end)
   end
+
+  test "persists google_event_id for each series lesson" do
+    first =
+      Scheduling.Recurrence.occurrence_utc(~D[2027-06-08], ~T[16:00:00], "America/Vancouver")
+
+    {:ok, %{lessons: lessons}} =
+      Scheduling.create_series(%{
+        instrument_slug: "piano",
+        duration_minutes: 60,
+        first_starts_at: first,
+        interval_weeks: 1,
+        name: "Sam Lee",
+        email: "sam@example.com",
+        phone: "604"
+      })
+
+    # Reload lessons from DB to get persisted google_event_id
+    persisted_lessons =
+      Repo.all(from(l in Lesson, where: l.id in ^Enum.map(lessons, & &1.id)))
+
+    # Each lesson should have a google_event_id set
+    assert Enum.all?(persisted_lessons, &(&1.google_event_id != nil))
+    assert Enum.all?(persisted_lessons, &String.starts_with?(&1.google_event_id, "evt-"))
+  end
 end
