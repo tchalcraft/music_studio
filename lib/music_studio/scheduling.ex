@@ -208,18 +208,7 @@ defmodule MusicStudio.Scheduling do
 
   defp after_series(enrollment, lessons, series, params) do
     Enum.each(lessons, fn lesson ->
-      side_effect(fn ->
-        ends_at = DateTime.add(lesson.scheduled_start, lesson.duration_minutes, :minute)
-
-        case write_event(lesson, series.instrument, params, ends_at) do
-          {:ok, event_id} ->
-            {:ok, _updated} =
-              lesson |> Lesson.changeset(%{google_event_id: event_id}) |> Repo.update()
-
-          _ ->
-            :ok
-        end
-      end)
+      side_effect(fn -> write_and_persist_event(lesson, series.instrument, params) end)
     end)
 
     side_effect(fn ->
@@ -589,6 +578,22 @@ defmodule MusicStudio.Scheduling do
       ends_at: ends_at,
       timezone: cfg(:studio_timezone)
     })
+  end
+
+  # Write a series lesson's calendar event and persist the returned id on the lesson, so
+  # cancel/skip/reschedule can later clean the event up (GH #5). Best-effort: runs inside
+  # side_effect/1, and a write failure just leaves google_event_id nil.
+  defp write_and_persist_event(lesson, instrument, params) do
+    ends_at = DateTime.add(lesson.scheduled_start, lesson.duration_minutes, :minute)
+
+    case write_event(lesson, instrument, params, ends_at) do
+      {:ok, event_id} ->
+        {:ok, _updated} =
+          lesson |> Lesson.changeset(%{google_event_id: event_id}) |> Repo.update()
+
+      _ ->
+        :ok
+    end
   end
 
   defp email_details(lesson, teacher, instrument, params, ends_at) do
