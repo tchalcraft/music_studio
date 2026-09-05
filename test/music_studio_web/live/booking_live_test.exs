@@ -126,7 +126,7 @@ defmodule MusicStudioWeb.BookingLiveTest do
     refute html =~ ~s(name="instrument_slug")
   end
 
-  test "picking the instrument + duration boxes advances to Schedule", %{conn: conn} do
+  test "pick instrument + duration, then Continue advances to Schedule", %{conn: conn} do
     target = Date.add(Date.utc_today(), 10)
     stub_on_day(target)
     {:ok, view, _} = live(conn, "/book")
@@ -134,8 +134,40 @@ defmodule MusicStudioWeb.BookingLiveTest do
     render_click(view, "pick_instrument", %{"slug" => "piano"})
     html = render_click(view, "pick_duration", %{"minutes" => "60"})
 
+    # Picking the boxes records the choice but does NOT auto-advance — the visitor
+    # continues explicitly.
+    refute html =~ "Available times"
+
+    html = render_click(view, "to_schedule", %{})
+
     assert html =~ "Available times"
     assert has_element?(view, ~s([aria-current="step"]), "Schedule")
+  end
+
+  test "schedule shows the picked lesson, and Back keeps the selection with Continue", %{
+    conn: conn
+  } do
+    target = Date.add(Date.utc_today(), 10)
+    stub_on_day(target)
+    {:ok, view, _} = live(conn, "/book")
+
+    render_click(view, "pick_instrument", %{"slug" => "piano"})
+    render_click(view, "pick_duration", %{"minutes" => "60"})
+    html = render_click(view, "to_schedule", %{})
+
+    # The schedule step indicates what was picked.
+    assert html =~ "Piano"
+    assert html =~ "60 min"
+
+    # Going back keeps the selection (piano still pressed) and does not auto-advance.
+    html = render_click(view, "back", %{"to" => "lesson"})
+    refute html =~ "Available times"
+    # Non-selected buttons omit aria-pressed, so its presence on the piano button means
+    # the earlier selection persisted across Back.
+    assert has_element?(view, ~s(button[phx-value-slug="piano"][aria-pressed]))
+
+    # Continue is available and advances again.
+    assert render_click(view, "to_schedule", %{}) =~ "Available times"
   end
 
   # A near-future weekday (Mon–Fri) — availability is Mon–Fri 2–9pm, so weekends are empty.
