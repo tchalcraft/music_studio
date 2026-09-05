@@ -65,12 +65,23 @@ defmodule MusicStudioWeb.BookingLive do
      )}
   end
 
+  # Picking an instrument/length only records the choice — the visitor advances to the
+  # schedule step explicitly via the Continue button (handle_event "to_schedule"). This
+  # keeps back/forward consistent: selections persist and Continue is always available.
   def handle_event("pick_instrument", %{"slug" => slug}, socket) do
-    {:noreply, socket |> assign(:instrument_slug, slug) |> maybe_advance()}
+    {:noreply, assign(socket, :instrument_slug, slug)}
   end
 
   def handle_event("pick_duration", %{"minutes" => minutes}, socket) do
-    {:noreply, socket |> assign(:duration_minutes, String.to_integer(minutes)) |> maybe_advance()}
+    {:noreply, assign(socket, :duration_minutes, String.to_integer(minutes))}
+  end
+
+  def handle_event("to_schedule", _params, socket) do
+    if socket.assigns.instrument_slug && socket.assigns.duration_minutes do
+      {:noreply, load_and_schedule(socket)}
+    else
+      {:noreply, socket}
+    end
   end
 
   def handle_event("set_cadence", %{"cadence" => cadence}, socket) do
@@ -288,6 +299,15 @@ defmodule MusicStudioWeb.BookingLive do
             {d} min
           </button>
         </div>
+
+        <button
+          type="button"
+          phx-click="to_schedule"
+          disabled={!(@instrument_slug && @duration_minutes)}
+          class="mt-6 w-full cursor-pointer rounded-lg bg-indigo-600 px-4 py-2.5 font-medium text-white shadow-sm transition-colors hover:bg-indigo-700 active:scale-[.98] disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-500 dark:bg-indigo-500 dark:hover:bg-indigo-400 dark:disabled:bg-gray-700 dark:disabled:text-gray-400 sm:w-auto"
+        >
+          Continue
+        </button>
       </section>
 
       <section :if={@step == :schedule} class="mt-6">
@@ -302,6 +322,10 @@ defmodule MusicStudioWeb.BookingLive do
             ← Back
           </button>
         </div>
+
+        <p class="mt-1 text-sm font-medium text-indigo-700 dark:text-indigo-300">
+          {instrument_name(@instruments, @instrument_slug)} · {@duration_minutes} min
+        </p>
 
         <p :if={@slots_error} class="mt-4 text-sm text-red-600">
           Couldn't load times. Please try again.
@@ -563,11 +587,11 @@ defmodule MusicStudioWeb.BookingLive do
   defp today_local,
     do: DateTime.utc_now() |> DateTime.shift_zone!(studio_tz()) |> DateTime.to_date()
 
-  # Advance to the schedule step once both instrument and duration are chosen.
-  defp maybe_advance(socket) do
-    if socket.assigns.instrument_slug && socket.assigns.duration_minutes,
-      do: load_and_schedule(socket),
-      else: socket
+  defp instrument_name(instruments, slug) do
+    case Enum.find(instruments, &(&1.slug == slug)) do
+      nil -> nil
+      instrument -> instrument.name
+    end
   end
 
   defp load_and_schedule(socket) do
