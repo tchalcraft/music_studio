@@ -38,6 +38,8 @@ defmodule MusicStudioWeb.BookingLive do
      |> assign(:rec_pattern, nil)
      |> assign(:series_start, nil)
      |> assign(:series_preview, nil)
+     |> assign(:series_mode, "school_year")
+     |> assign(:series_end, nil)
      |> assign(:booked, nil)
      |> assign(:booked_series, nil)
      |> assign(:form, to_form(%{"name" => "", "email" => "", "phone" => ""}, as: :booking))}
@@ -92,7 +94,9 @@ defmodule MusicStudioWeb.BookingLive do
        selected_day: nil,
        rec_pattern: nil,
        series_start: nil,
-       selected_slot: nil
+       selected_slot: nil,
+       series_mode: "school_year",
+       series_end: nil
      )
      |> maybe_preview()}
   end
@@ -105,17 +109,41 @@ defmodule MusicStudioWeb.BookingLive do
 
     {:noreply,
      socket
-     |> assign(rec_pattern: dt, series_start: default_start(weekday))
+     |> assign(
+       rec_pattern: dt,
+       series_start: default_start(weekday),
+       series_mode: "school_year",
+       series_end: nil
+     )
      |> put_series_slot()
      |> maybe_preview()}
   end
 
   def handle_event("start_later", _params, socket) do
-    {:noreply, socket |> shift_start(7) |> put_series_slot() |> maybe_preview()}
+    {:noreply,
+     socket |> shift_start(7) |> reclamp_series_end() |> put_series_slot() |> maybe_preview()}
   end
 
   def handle_event("start_earlier", _params, socket) do
-    {:noreply, socket |> shift_start(-7) |> put_series_slot() |> maybe_preview()}
+    {:noreply,
+     socket |> shift_start(-7) |> reclamp_series_end() |> put_series_slot() |> maybe_preview()}
+  end
+
+  def handle_event("set_series_mode", %{"mode" => mode}, socket) do
+    series_end = if mode == "custom", do: default_series_end(socket), else: nil
+
+    {:noreply,
+     socket
+     |> assign(series_mode: mode, series_end: series_end)
+     |> maybe_preview()}
+  end
+
+  def handle_event("end_later", _params, socket) do
+    {:noreply, socket |> shift_end(7) |> maybe_preview()}
+  end
+
+  def handle_event("end_earlier", _params, socket) do
+    {:noreply, socket |> shift_end(-7) |> maybe_preview()}
   end
 
   def handle_event("to_details", _params, socket) do
@@ -188,6 +216,7 @@ defmodule MusicStudioWeb.BookingLive do
       duration_minutes: socket.assigns.duration_minutes,
       first_starts_at: socket.assigns.selected_slot,
       interval_weeks: interval_for(socket.assigns.cadence),
+      ends_on: ends_on_for(socket),
       name: params["name"],
       email: params["email"],
       phone: params["phone"]
@@ -218,11 +247,16 @@ defmodule MusicStudioWeb.BookingLive do
         instrument_slug: socket.assigns.instrument_slug,
         duration_minutes: socket.assigns.duration_minutes,
         first_starts_at: socket.assigns.selected_slot,
-        interval_weeks: interval_for(socket.assigns.cadence)
+        interval_weeks: interval_for(socket.assigns.cadence),
+        ends_on: ends_on_for(socket)
       })
 
     assign(socket, :series_preview, preview)
   end
+
+  # The chosen series end (a Date) in "Pick your dates" mode; nil ("whole school year") otherwise.
+  defp ends_on_for(%{assigns: %{series_mode: "custom", series_end: %Date{} = e}}), do: e
+  defp ends_on_for(_socket), do: nil
 
   defp interval_for("biweekly"), do: 2
   defp interval_for(_), do: 1
@@ -486,19 +520,81 @@ defmodule MusicStudioWeb.BookingLive do
               </button>
             </div>
 
+            <div class="mt-3 flex flex-wrap gap-2 text-sm">
+              <button
+                type="button"
+                phx-click="set_series_mode"
+                phx-value-mode="school_year"
+                class={[
+                  "cursor-pointer rounded-full border px-3 py-1 transition-colors",
+                  (@series_mode == "school_year" &&
+                     "border-indigo-600 bg-indigo-600 text-white dark:border-indigo-400 dark:bg-indigo-500") ||
+                    "border-indigo-200 text-indigo-800 hover:border-indigo-400 dark:border-indigo-800 dark:text-indigo-200"
+                ]}
+              >
+                School year
+              </button>
+              <button
+                type="button"
+                phx-click="set_series_mode"
+                phx-value-mode="custom"
+                class={[
+                  "cursor-pointer rounded-full border px-3 py-1 transition-colors",
+                  (@series_mode == "custom" &&
+                     "border-indigo-600 bg-indigo-600 text-white dark:border-indigo-400 dark:bg-indigo-500") ||
+                    "border-indigo-200 text-indigo-800 hover:border-indigo-400 dark:border-indigo-800 dark:text-indigo-200"
+                ]}
+              >
+                Pick your dates
+              </button>
+            </div>
+
+            <div
+              :if={@series_mode == "custom" && @series_end}
+              class="mt-3 flex items-center gap-3 text-sm"
+            >
+              <span class="font-medium">Ends on</span>
+              <button
+                type="button"
+                phx-click="end_earlier"
+                disabled={!can_end_earlier?(@series_end, @series_start, @cadence, @rec_pattern)}
+                class="cursor-pointer rounded px-2 py-1 text-indigo-700 disabled:cursor-not-allowed disabled:text-gray-300 dark:text-indigo-300"
+                aria-label="Earlier end"
+              >
+                ◀
+              </button>
+              <span class="font-medium tabular-nums">{Calendar.strftime(@series_end, "%A, %b %-d")}</span>
+              <button
+                type="button"
+                phx-click="end_later"
+                disabled={!can_end_later?(@series_end, @series_start, @cadence, @rec_pattern)}
+                class="cursor-pointer rounded px-2 py-1 text-indigo-700 disabled:cursor-not-allowed disabled:text-gray-300 dark:text-indigo-300"
+                aria-label="Later end"
+              >
+                ▶
+              </button>
+            </div>
+
             <p class="mt-3 text-sm text-indigo-900">
               Every {Calendar.strftime(@series_start, "%A")}, {time_label(@rec_pattern)}
-              <span :if={@series_preview}>
-                · {length(@series_preview.bookable)} lessons through Jun 30<span :if={
+              <span :if={@series_preview && @series_preview.bookable != []}>
+                · {length(@series_preview.bookable)} lessons, {series_range_label(@series_preview)}<span :if={
                   @series_preview.conflicted != []
-                }>· {length(@series_preview.conflicted)} week(s) need another time</span>
+                }> · {length(@series_preview.conflicted)} week(s) need another time</span>
+              </span>
+              <span
+                :if={@series_preview && @series_preview.bookable == []}
+                class="text-red-700 dark:text-red-400"
+              >
+                · No lessons in that range — adjust the dates.
               </span>
             </p>
 
             <button
               type="button"
               phx-click="to_details"
-              class="mt-3 w-full cursor-pointer rounded-lg bg-indigo-600 px-4 py-2.5 font-medium text-white shadow-sm transition-colors hover:bg-indigo-700 active:scale-[.98] dark:bg-indigo-500 dark:hover:bg-indigo-400 sm:w-auto"
+              disabled={@series_preview == nil || @series_preview.bookable == []}
+              class="mt-3 w-full cursor-pointer rounded-lg bg-indigo-600 px-4 py-2.5 font-medium text-white shadow-sm transition-colors hover:bg-indigo-700 active:scale-[.98] disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-500 dark:bg-indigo-500 dark:hover:bg-indigo-400 dark:disabled:bg-gray-700 dark:disabled:text-gray-400 sm:w-auto"
             >
               Continue
             </button>
@@ -523,10 +619,12 @@ defmodule MusicStudioWeb.BookingLive do
           {slot_label(@selected_slot)} · {@duration_minutes} min
         </p>
 
-        <p :if={@series_preview} class="mt-2 text-sm text-indigo-700">
-          {length(@series_preview.bookable)} lessons through June 30<span :if={
-            @series_preview.conflicted != []
-          }>
+        <p
+          :if={@series_preview && @series_preview.bookable != []}
+          class="mt-2 text-sm text-indigo-700"
+        >
+          {length(@series_preview.bookable)} lessons, {series_range_label(@series_preview)}
+          <span :if={@series_preview.conflicted != []}>
             · {length(@series_preview.conflicted)} weeks need another time
           </span>
         </p>
@@ -546,7 +644,7 @@ defmodule MusicStudioWeb.BookingLive do
 
       <section :if={@step == :done} class="mt-6 rounded border p-4">
         <p :if={@booked_series} class="font-medium">
-          Your series is booked — {@booked_series.count} lessons through June 30! Check your email
+          Your series is booked — {@booked_series.count} lessons! Check your email
           for the schedule and calendar invites.
         </p>
         <p :if={@booked_series && @booked_series.conflicted != []} class="mt-2 text-sm text-gray-600">
@@ -708,6 +806,72 @@ defmodule MusicStudioWeb.BookingLive do
   defp can_start_later?(series_start, rec_pattern) do
     weekday = rec_pattern |> local_date() |> Date.day_of_week()
     Date.compare(series_start, last_start(weekday)) == :lt
+  end
+
+  # --- Custom series end ("Pick your dates", GH #16) ---
+
+  # Default custom end = the last pattern occurrence on/before the term end (the school-year end).
+  defp default_series_end(%{assigns: %{rec_pattern: nil}}), do: nil
+
+  defp default_series_end(%{assigns: %{rec_pattern: rec_pattern}}) do
+    rec_pattern |> local_date() |> Date.day_of_week() |> last_start()
+  end
+
+  # The latest a custom end may go: the last pattern occurrence on/before June 30.
+  defp end_ceil(rec_pattern) do
+    rec_pattern |> local_date() |> Date.day_of_week() |> last_start()
+  end
+
+  # The earliest a custom end may go: one interval after the start (≥ 2 lessons), but never
+  # past the ceiling (guards the edge where the start already sits at the last occurrence).
+  defp end_floor(series_start, cadence, rec_pattern) do
+    naive = Date.add(series_start, interval_for(cadence) * 7)
+    ceil = end_ceil(rec_pattern)
+    if Date.compare(naive, ceil) == :gt, do: ceil, else: naive
+  end
+
+  defp shift_end(%{assigns: %{series_end: nil}} = socket, _days), do: socket
+
+  defp shift_end(%{assigns: %{series_end: current}} = socket, days) do
+    assign(socket, :series_end, clamp_end(socket, Date.add(current, days)))
+  end
+
+  defp reclamp_series_end(%{assigns: %{series_mode: "custom", series_end: %Date{} = e}} = socket) do
+    assign(socket, :series_end, clamp_end(socket, e))
+  end
+
+  defp reclamp_series_end(socket), do: socket
+
+  defp clamp_end(%{assigns: assigns}, target) do
+    floor = end_floor(assigns.series_start, assigns.cadence, assigns.rec_pattern)
+    ceil = end_ceil(assigns.rec_pattern)
+
+    cond do
+      Date.compare(target, floor) == :lt -> floor
+      Date.compare(target, ceil) == :gt -> ceil
+      true -> target
+    end
+  end
+
+  defp can_end_earlier?(nil, _start, _cadence, _rec), do: false
+
+  defp can_end_earlier?(series_end, series_start, cadence, rec_pattern) do
+    Date.compare(series_end, end_floor(series_start, cadence, rec_pattern)) == :gt
+  end
+
+  defp can_end_later?(nil, _start, _cadence, _rec), do: false
+
+  defp can_end_later?(series_end, _series_start, _cadence, rec_pattern) do
+    Date.compare(series_end, end_ceil(rec_pattern)) == :lt
+  end
+
+  # Human range for the preview line: "Sep 15 → Dec 8" from the bookable occurrences.
+  defp series_range_label(%{bookable: []}), do: nil
+
+  defp series_range_label(%{bookable: bookable}) do
+    first = bookable |> List.first() |> local_date()
+    last = bookable |> List.last() |> local_date()
+    "#{Calendar.strftime(first, "%b %-d")} → #{Calendar.strftime(last, "%b %-d")}"
   end
 
   defp pattern_selected?(nil, _starts_at), do: false

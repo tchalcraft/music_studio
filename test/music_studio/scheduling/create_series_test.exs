@@ -70,6 +70,27 @@ defmodule MusicStudio.Scheduling.CreateSeriesTest do
     assert_email_sent(fn e -> e.subject =~ "lessons" or e.subject =~ "series" end)
   end
 
+  test "a custom end date (#16) is persisted as ended_on and bounds the lessons" do
+    first =
+      Scheduling.Recurrence.occurrence_utc(~D[2026-09-08], ~T[16:00:00], "America/Vancouver")
+
+    {:ok, %{enrollment: enr, lessons: lessons}} =
+      Scheduling.create_series(%{
+        instrument_slug: "piano",
+        duration_minutes: 60,
+        first_starts_at: first,
+        interval_weeks: 1,
+        ends_on: ~D[2026-10-06],
+        name: "Sam Lee",
+        email: "sam@example.com",
+        phone: "604"
+      })
+
+    # Tuesdays Sep 8 -> Oct 6 2026 = 5 lessons; the enrollment records the chosen end.
+    assert enr.ended_on == ~D[2026-10-06]
+    assert length(lessons) == 5
+  end
+
   test "persists google_event_id for each series lesson" do
     first =
       Scheduling.Recurrence.occurrence_utc(~D[2027-06-08], ~T[16:00:00], "America/Vancouver")

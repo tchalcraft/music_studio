@@ -94,7 +94,10 @@ defmodule MusicStudioWeb.BookingLiveRecurringTest do
 
     assert html =~ "Starts on"
     assert html =~ Calendar.strftime(default_start(3), "%A, %b %-d")
-    assert html =~ "lessons through Jun 30"
+    assert html =~ "lessons,"
+    # Defaults to the whole school year (no end stepper until "Pick your dates").
+    assert html =~ "School year"
+    refute html =~ "Ends on"
   end
 
   test "stepping the start date moves it one week and back", %{conn: conn} do
@@ -128,6 +131,42 @@ defmodule MusicStudioWeb.BookingLiveRecurringTest do
       })
 
     assert html =~ "Your series is booked"
-    assert html =~ "lessons through June 30"
+    assert html =~ "lessons!"
+  end
+
+  # The last pattern occurrence on/before the term end — the default custom end date.
+  defp last_start(weekday) do
+    te = Recurrence.term_end(default_start(weekday))
+    Date.add(te, -rem(Date.day_of_week(te) - weekday + 7, 7))
+  end
+
+  test "Pick your dates reveals an end-date stepper defaulting to the school-year end (#16)",
+       %{conn: conn} do
+    view = start_schedule(conn)
+    render_click(view, "pick_pattern", %{"start" => wednesday_pattern_iso()})
+
+    refute render(view) =~ "Ends on"
+
+    html = render_click(view, "set_series_mode", %{"mode" => "custom"})
+
+    assert html =~ "Ends on"
+    assert html =~ Calendar.strftime(last_start(3), "%A, %b %-d")
+    assert has_element?(view, ~s(button[phx-click="end_earlier"]))
+    assert has_element?(view, ~s(button[phx-click="end_later"]))
+    assert html =~ "lessons,"
+  end
+
+  test "stepping the custom end date earlier moves it one week and shortens the series (#16)",
+       %{conn: conn} do
+    view = start_schedule(conn)
+    render_click(view, "pick_pattern", %{"start" => wednesday_pattern_iso()})
+    render_click(view, "set_series_mode", %{"mode" => "custom"})
+
+    html = render_click(view, "end_earlier", %{})
+    assert html =~ Calendar.strftime(Date.add(last_start(3), -7), "%A, %b %-d")
+
+    # Returning to "School year" clears the end stepper.
+    html = render_click(view, "set_series_mode", %{"mode" => "school_year"})
+    refute html =~ "Ends on"
   end
 end
