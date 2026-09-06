@@ -74,6 +74,7 @@ defmodule MusicStudio.Scheduling.NotifierTest do
 
     assert_email_sent(fn email ->
       ics = calendar_attachment(email).data
+
       ics =~ "ORGANIZER;CN=\"Tristan Chalcraft Music\":mailto:tchalcraftmusic@gmail.com" and
         not (ics =~ "tristan@example.com")
     end)
