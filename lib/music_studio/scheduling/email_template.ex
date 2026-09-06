@@ -63,7 +63,10 @@ defmodule MusicStudio.Scheduling.EmailTemplate do
 
     detail_lines = Enum.map_join(details, "\n", fn {k, v} -> "#{k}: #{v}" end)
     cta_line = if cta, do: "\n#{cta.label}: #{cta.url}", else: ""
-    cta_secondary_line = if cta_secondary, do: "#{cta_secondary.label}: #{cta_secondary.url}", else: ""
+
+    cta_secondary_line =
+      if cta_secondary, do: "#{cta_secondary.label}: #{cta_secondary.url}", else: ""
+
     link_lines = Enum.map_join(footer_links(), "\n", fn {label, url} -> "#{label}: #{url}" end)
 
     [

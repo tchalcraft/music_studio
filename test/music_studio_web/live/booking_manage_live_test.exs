@@ -71,4 +71,53 @@ defmodule MusicStudioWeb.BookingManageLiveTest do
     render_click(view, "skip", %{"token" => target.booking_token})
     refute render(view) =~ target.booking_token
   end
+
+  describe "single-lesson reschedule (#15)" do
+    setup do
+      starts_at =
+        Scheduling.Recurrence.occurrence_utc(~D[2027-06-07], ~T[16:00:00], "America/Vancouver")
+
+      {:ok, lesson} =
+        Scheduling.create_booking(%{
+          instrument_slug: "piano",
+          duration_minutes: 60,
+          starts_at: starts_at,
+          name: "Jo",
+          email: "jo@example.com",
+          phone: nil
+        })
+
+      %{lesson: lesson, starts_at: starts_at}
+    end
+
+    test "picking a new time reveals slots and moves the lesson", %{
+      conn: conn,
+      lesson: lesson,
+      starts_at: starts_at
+    } do
+      {:ok, view, _html} = live(conn, "/book/manage/#{lesson.booking_token}")
+
+      # Reveal the reschedule picker.
+      html = render_click(view, "start_reschedule", %{})
+      assert html =~ "Pick a new time" or html =~ "Choose a new time"
+
+      # Find an available slot different from the current booking.
+      {:ok, slots} =
+        Scheduling.list_available_slots(%{
+          instrument_slug: "piano",
+          duration_minutes: 60,
+          from: Date.add(Date.utc_today(), 1),
+          to: Date.add(Date.utc_today(), 21)
+        })
+
+      new_slot = Enum.find(slots, &(DateTime.compare(&1.starts_at, starts_at) != :eq))
+      assert new_slot, "expected at least one alternate available slot"
+
+      render_click(view, "pick_new_slot", %{"start" => DateTime.to_iso8601(new_slot.starts_at)})
+
+      updated = Scheduling.get_lesson_by_token(lesson.booking_token)
+      assert DateTime.compare(updated.scheduled_start, new_slot.starts_at) == :eq
+      assert render(view) =~ "moved" or render(view) =~ "rescheduled"
+    end
+  end
 end
