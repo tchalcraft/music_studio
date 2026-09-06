@@ -22,6 +22,7 @@ defmodule MusicStudio.Scheduling.EmailTemplate do
     paragraphs = Keyword.get(opts, :paragraphs, [])
     details = Keyword.get(opts, :details, [])
     cta = Keyword.get(opts, :cta)
+    cta_secondary = Keyword.get(opts, :cta_secondary)
 
     """
     <!doctype html>
@@ -43,6 +44,7 @@ defmodule MusicStudio.Scheduling.EmailTemplate do
             </td></tr>
             #{details_block(details)}
             #{cta_block(cta)}
+            #{cta_secondary_block(cta_secondary)}
             #{footer_block()}
           </table>
         </td></tr>
@@ -57,9 +59,11 @@ defmodule MusicStudio.Scheduling.EmailTemplate do
     paragraphs = Keyword.get(opts, :paragraphs, [])
     details = Keyword.get(opts, :details, [])
     cta = Keyword.get(opts, :cta)
+    cta_secondary = Keyword.get(opts, :cta_secondary)
 
     detail_lines = Enum.map_join(details, "\n", fn {k, v} -> "#{k}: #{v}" end)
     cta_line = if cta, do: "\n#{cta.label}: #{cta.url}", else: ""
+    cta_secondary_line = if cta_secondary, do: "#{cta_secondary.label}: #{cta_secondary.url}", else: ""
     link_lines = Enum.map_join(footer_links(), "\n", fn {label, url} -> "#{label}: #{url}" end)
 
     [
@@ -67,6 +71,7 @@ defmodule MusicStudio.Scheduling.EmailTemplate do
       Enum.join(paragraphs, "\n\n"),
       detail_lines,
       cta_line,
+      cta_secondary_line,
       "\n— Tristan Chalcraft Music · Music lessons in the Greater Vancouver area",
       link_lines
     ]
@@ -136,6 +141,16 @@ defmodule MusicStudio.Scheduling.EmailTemplate do
     """
     <tr><td style="padding:20px 32px 4px 32px;">
       <a href="#{h(url)}" style="display:inline-block;background:#{@accent};color:#ffffff;text-decoration:none;font-size:15px;font-weight:600;padding:12px 20px;border-radius:8px;font-family:#{@font};">#{h(label)}</a>
+    </td></tr>
+    """
+  end
+
+  defp cta_secondary_block(nil), do: ""
+
+  defp cta_secondary_block(%{label: label, url: url}) do
+    """
+    <tr><td style="padding:8px 32px 4px 32px;">
+      <a href="#{h(url)}" style="display:inline-block;color:#{@accent};text-decoration:none;font-size:14px;font-weight:600;font-family:#{@font};">#{h(label)} &rarr;</a>
     </td></tr>
     """
   end

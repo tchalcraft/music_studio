@@ -24,10 +24,10 @@ upsert = fn queryable, natural_key, create_fun ->
 end
 
 # Teacher
-upsert.(Teacher, [email: "tristan@example.com"], fn ->
+upsert.(Teacher, [email: "tchalcraftmusic@gmail.com"], fn ->
   Catalog.create_teacher(%{
     name: "Tristan",
-    email: "tristan@example.com",
+    email: "tchalcraftmusic@gmail.com",
     bio: "Classically trained teacher of voice, piano, and guitar.",
     active: true
   })

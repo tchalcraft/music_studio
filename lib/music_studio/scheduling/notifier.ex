@@ -14,6 +14,7 @@ defmodule MusicStudio.Scheduling.Notifier do
   def deliver_booking_emails(details) do
     from_addr = cfg(:notify_from)
     to_addr = cfg(:notify_to)
+    address = studio_address(details)
     when_str = local_string(details.starts_at, details.timezone)
     ics = ICS.build(ics_attrs(details, from_addr))
 
@@ -22,7 +23,7 @@ defmodule MusicStudio.Scheduling.Notifier do
         title: "#{String.capitalize(details.instrument)} lesson",
         details:
           "#{details.duration_minutes}-minute #{details.instrument} lesson. Manage: #{details.manage_url}",
-        location: "Studio",
+        location: address,
         starts_at: details.starts_at,
         ends_at: details.ends_at
       })
@@ -31,24 +32,21 @@ defmodule MusicStudio.Scheduling.Notifier do
       title: "You're booked!",
       greeting: "Hi #{details.visitor_name},",
       paragraphs: [
-        "Your #{details.duration_minutes}-minute #{details.instrument} lesson is confirmed. The attached calendar file (lesson.ics) can be added to your calendar, or use the button below for Google Calendar.",
-        "Need to change it? Use the link below."
+        "Your #{details.duration_minutes}-minute #{details.instrument} lesson is confirmed. The attached calendar file (lesson.ics) adds it to your calendar. Need to change it? Use the Modify booking button below to cancel or pick a new time."
       ],
-      details: [{"When", when_str}, {"Where", "Studio"}],
-      cta: %{label: "Add to Google Calendar", url: gcal}
+      details: [{"When", when_str}, {"Where", address}],
+      cta: %{label: "Modify booking", url: details.manage_url},
+      cta_secondary: %{label: "Add to Google Calendar", url: gcal}
     ]
-
-    extra = [{"Manage your booking", details.manage_url}]
-
-    text_opts = Keyword.put(body_opts, :details, body_opts[:details] ++ extra)
 
     confirmation =
       new()
       |> to({details.visitor_name, details.visitor_email})
       |> from({"Tristan Chalcraft Music", from_addr})
+      |> reply_to(organizer_email(details))
       |> subject("Your #{details.instrument} lesson is booked — #{when_str}")
       |> html_body(EmailTemplate.html(body_opts))
-      |> text_body(EmailTemplate.text(text_opts))
+      |> text_body(EmailTemplate.text(body_opts))
       |> attachment(
         Swoosh.Attachment.new({:data, ics},
           filename: "lesson.ics",
@@ -96,8 +94,8 @@ defmodule MusicStudio.Scheduling.Notifier do
       title: "Your lesson moved",
       greeting: "Hi #{details.visitor_name},",
       paragraphs: ["Your #{details.instrument} lesson has been moved. Here are the new details:"],
-      details: [{"New time", when_str}, {"Where", "Studio"}],
-      cta: %{label: "Manage your booking", url: details.manage_url}
+      details: [{"New time", when_str}, {"Where", studio_address(details)}],
+      cta: %{label: "Modify booking", url: details.manage_url}
     ]
 
     deliver_visitor(details, "Your #{details.instrument} lesson moved to #{when_str}", opts)
@@ -119,6 +117,7 @@ defmodule MusicStudio.Scheduling.Notifier do
       new()
       |> to({details.visitor_name, details.visitor_email})
       |> from({"Tristan Chalcraft Music", cfg(:notify_from)})
+      |> reply_to(organizer_email(details))
       |> subject("Your #{details.instrument} lessons are booked")
       |> html_body(EmailTemplate.html(opts))
       |> text_body(EmailTemplate.text(opts))
@@ -160,6 +159,7 @@ defmodule MusicStudio.Scheduling.Notifier do
       new()
       |> to({details.visitor_name, details.visitor_email})
       |> from({"Tristan Chalcraft Music", cfg(:notify_from)})
+      |> reply_to(organizer_email(details))
       |> subject(subject)
       |> html_body(EmailTemplate.html(opts))
       |> text_body(EmailTemplate.text(opts))
@@ -167,20 +167,25 @@ defmodule MusicStudio.Scheduling.Notifier do
     with {:ok, _} <- Mailer.deliver(email), do: {:ok, email}
   end
 
-  defp ics_attrs(d, organizer_email) do
+  defp ics_attrs(d, fallback_organizer_email) do
     %{
       uid: d.uid,
-      summary: "#{String.capitalize(d.instrument)} lesson — #{d.visitor_name}",
+      summary: "#{String.capitalize(d.instrument)} lesson",
       description: "#{d.duration_minutes}-minute #{d.instrument} lesson. Manage: #{d.manage_url}",
-      location: "Studio",
+      location: studio_address(d),
       starts_at: d.starts_at,
       ends_at: d.ends_at,
-      organizer_email: d.organizer_email || organizer_email,
+      organizer_email: d.organizer_email || fallback_organizer_email,
       organizer_name: d.organizer_name,
       attendee_email: d.visitor_email,
       now: DateTime.utc_now()
     }
   end
+
+  # Studio address / organizer email come from the details map (built from config via
+  # Scheduling.studio_identity/0); fall back to config directly for any older caller.
+  defp studio_address(d), do: Map.get(d, :studio_address) || cfg(:studio_address)
+  defp organizer_email(d), do: Map.get(d, :organizer_email) || cfg(:organizer_email)
 
   defp notification_body(d, when_str) do
     """

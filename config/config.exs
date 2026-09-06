@@ -121,6 +121,13 @@ config :music_studio, MusicStudio.Scheduling,
   target_calendar_id: nil,
   notify_from: "no-reply@musicstudio.local",
   notify_to: "owner@example.com",
+  # Studio identity for emails + calendar invites — single-sourced here, NOT read from the
+  # teacher DB row (so a placeholder teacher email can never leak into an invite; see #11).
+  # The `.ics`/calendar organizer presents as organizer_name <organizer_email>; the SMTP From
+  # stays `notify_from` (must be a verified sender), with organizer_email as the email Reply-To.
+  studio_address: "14826 Thrift Avenue, White Rock, BC, Canada",
+  organizer_name: "Tristan Chalcraft Music",
+  organizer_email: "tchalcraftmusic@gmail.com",
   website_url: nil,
   social: [instagram: nil, facebook: nil, youtube: nil]
 

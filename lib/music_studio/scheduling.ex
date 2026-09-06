@@ -381,11 +381,17 @@ defmodule MusicStudio.Scheduling do
   defp update_event(%{google_event_id: nil}, _new_starts_at, _new_end), do: :ok
 
   defp update_event(lesson, new_starts_at, new_end) do
+    instrument_name =
+      case lesson.instrument do
+        %{name: name} -> "#{String.capitalize(name)} lesson"
+        _ -> "Lesson"
+      end
+
     side_effect(fn ->
       GoogleCalendar.update_event(target_calendar(), lesson.google_event_id, %{
-        summary: "Lesson",
+        summary: instrument_name,
         description: "Rescheduled",
-        location: "Studio",
+        location: studio_identity().address,
         starts_at: new_starts_at,
         ends_at: new_end,
         timezone: cfg(:studio_timezone)
@@ -529,13 +535,22 @@ defmodule MusicStudio.Scheduling do
 
   defp add_series_event(enr, lesson, ends_at) do
     GoogleCalendar.insert_event(target_calendar(), %{
-      summary: "Lesson — #{enr.contact_email}",
+      summary: "Lesson — #{enr.contact_email} (weekly series)",
       description: "Series alternate.",
-      location: "Studio",
+      location: studio_identity().address,
       starts_at: lesson.scheduled_start,
       ends_at: ends_at,
       timezone: cfg(:studio_timezone)
     })
+  end
+
+  @doc """
+  Studio identity (name, email, address) for emails + calendar invites, sourced from config —
+  NOT the teacher DB row — so a placeholder teacher email can't leak into an invite (#11).
+  """
+  @spec studio_identity() :: %{name: String.t(), email: String.t(), address: String.t()}
+  def studio_identity do
+    %{name: cfg(:organizer_name), email: cfg(:organizer_email), address: cfg(:studio_address)}
   end
 
   # --- internals ---
@@ -569,11 +584,13 @@ defmodule MusicStudio.Scheduling do
     lesson
   end
 
-  defp write_event(lesson, instrument, params, ends_at) do
+  defp write_event(lesson, instrument, params, ends_at, opts \\ []) do
+    series_suffix = if Keyword.get(opts, :series?, false), do: " (weekly series)", else: ""
+
     GoogleCalendar.insert_event(target_calendar(), %{
-      summary: "#{String.capitalize(instrument.name)} lesson — #{params.name}",
+      summary: "#{String.capitalize(instrument.name)} lesson — #{params.name}#{series_suffix}",
       description: "Online booking. #{params.email} #{params.phone}",
-      location: "Studio",
+      location: studio_identity().address,
       starts_at: lesson.scheduled_start,
       ends_at: ends_at,
       timezone: cfg(:studio_timezone)
@@ -586,7 +603,7 @@ defmodule MusicStudio.Scheduling do
   defp write_and_persist_event(lesson, instrument, params) do
     ends_at = DateTime.add(lesson.scheduled_start, lesson.duration_minutes, :minute)
 
-    case write_event(lesson, instrument, params, ends_at) do
+    case write_event(lesson, instrument, params, ends_at, series?: true) do
       {:ok, event_id} ->
         {:ok, _updated} =
           lesson |> Lesson.changeset(%{google_event_id: event_id}) |> Repo.update()
@@ -596,7 +613,7 @@ defmodule MusicStudio.Scheduling do
     end
   end
 
-  defp email_details(lesson, teacher, instrument, params, ends_at) do
+  defp email_details(lesson, _teacher, instrument, params, ends_at) do
     %{
       visitor_name: params.name,
       visitor_email: params.email,
@@ -606,8 +623,9 @@ defmodule MusicStudio.Scheduling do
       duration_minutes: params.duration_minutes,
       manage_url: MusicStudioWeb.Endpoint.url() <> "/book/manage/" <> lesson.booking_token,
       uid: lesson.id,
-      organizer_email: teacher.email,
-      organizer_name: teacher.name,
+      organizer_email: studio_identity().email,
+      organizer_name: studio_identity().name,
+      studio_address: studio_identity().address,
       timezone: cfg(:studio_timezone)
     }
   end
@@ -739,8 +757,9 @@ defmodule MusicStudio.Scheduling do
       duration_minutes: lesson.duration_minutes,
       manage_url: MusicStudioWeb.Endpoint.url() <> "/book/manage/" <> lesson.booking_token,
       uid: lesson.id,
-      organizer_email: lesson.teacher && lesson.teacher.email,
-      organizer_name: lesson.teacher && lesson.teacher.name,
+      organizer_email: studio_identity().email,
+      organizer_name: studio_identity().name,
+      studio_address: studio_identity().address,
       timezone: cfg(:studio_timezone)
     }
   end
