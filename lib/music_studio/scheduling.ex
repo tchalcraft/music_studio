@@ -67,19 +67,24 @@ defmodule MusicStudio.Scheduling do
   end
 
   @spec preview_series(map()) :: {:ok, map()} | {:error, term()}
-  def preview_series(%{
-        instrument_slug: slug,
-        duration_minutes: duration,
-        first_starts_at: first_starts_at,
-        interval_weeks: interval_weeks
-      }) do
+  def preview_series(
+        %{
+          instrument_slug: slug,
+          duration_minutes: duration,
+          first_starts_at: first_starts_at,
+          interval_weeks: interval_weeks
+        } = params
+      ) do
     tz = cfg(:studio_timezone)
     local_first = DateTime.shift_zone!(first_starts_at, tz)
     start_date = DateTime.to_date(local_first)
     time = local_first |> DateTime.to_time() |> Time.truncate(:second)
     term_end = Recurrence.term_end(start_date)
+    # The series horizon: a chosen end (#16), never past the school-year term end nor before
+    # the start; a nil end means "the whole school year" (unchanged behavior).
+    ended_on = clamp_series_end(Map.get(params, :ends_on), start_date, term_end)
 
-    # Compute availability ONCE across the whole term, then test each weekly occurrence
+    # Compute availability ONCE across the whole horizon, then test each weekly occurrence
     # against it in memory. Previously each occurrence called list_available_slots on its
     # own (an N+1 of ~43 single-day DB queries) which made this ~14s for a full school
     # year and blocked the LiveView on every pattern-pick / start-shift.
@@ -88,14 +93,14 @@ defmodule MusicStudio.Scheduling do
         instrument_slug: slug,
         duration_minutes: duration,
         from: start_date,
-        to: term_end
+        to: ended_on
       })
 
     available = MapSet.new(slots, &DateTime.to_unix(&1.starts_at))
 
     {bookable, conflicted} =
       start_date
-      |> Recurrence.occurrence_dates(interval_weeks, term_end)
+      |> Recurrence.occurrence_dates(interval_weeks, ended_on)
       |> Enum.split_with(fn date ->
         MapSet.member?(available, DateTime.to_unix(Recurrence.occurrence_utc(date, time, tz)))
       end)
@@ -105,9 +110,20 @@ defmodule MusicStudio.Scheduling do
        start_date: start_date,
        interval_weeks: interval_weeks,
        term_end: term_end,
+       ended_on: ended_on,
        bookable: Enum.map(bookable, &Recurrence.occurrence_utc(&1, time, tz)),
        conflicted: Enum.map(conflicted, &Recurrence.occurrence_utc(&1, time, tz))
      }}
+  end
+
+  defp clamp_series_end(nil, _start_date, term_end), do: term_end
+
+  defp clamp_series_end(%Date{} = ends_on, start_date, term_end) do
+    cond do
+      Date.compare(ends_on, term_end) == :gt -> term_end
+      Date.compare(ends_on, start_date) == :lt -> start_date
+      true -> ends_on
+    end
   end
 
   @spec create_series(map()) :: {:ok, map()} | {:error, term()}
@@ -166,7 +182,7 @@ defmodule MusicStudio.Scheduling do
     Enrollment.changeset(%Enrollment{}, %{
       status: :active,
       started_on: series.preview.start_date,
-      ended_on: series.preview.term_end,
+      ended_on: series.preview.ended_on,
       recurrence_interval_weeks: series.preview.interval_weeks,
       recurrence_weekday: series.weekday,
       recurrence_time: series.time,
@@ -670,10 +686,12 @@ defmodule MusicStudio.Scheduling do
     if is_nil(duration) do
       []
     else
-      term_end = Recurrence.term_end(enrollment.started_on)
+      # Hold the slot only through the series' real end (#16). Fall back to the school-year
+      # term end for legacy rows written before ended_on was populated.
+      horizon = enrollment.ended_on || Recurrence.term_end(enrollment.started_on)
 
       enrollment.started_on
-      |> Recurrence.occurrence_dates(enrollment.recurrence_interval_weeks, term_end)
+      |> Recurrence.occurrence_dates(enrollment.recurrence_interval_weeks, horizon)
       |> Enum.map(fn date ->
         starts =
           Recurrence.occurrence_utc(
