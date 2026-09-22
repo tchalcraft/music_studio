@@ -39,8 +39,10 @@ defmodule MusicStudio.Scheduling.PreviewSeriesTest do
       })
     end)
 
-    first =
-      Scheduling.Recurrence.occurrence_utc(~D[2026-09-08], ~T[16:00:00], "America/Vancouver")
+    start = early_series_start()
+    term_end = Scheduling.Recurrence.term_end(start)
+
+    first = Scheduling.Recurrence.occurrence_utc(start, ~T[16:00:00], "America/Vancouver")
 
     {:ok, preview} =
       Scheduling.preview_series(%{
@@ -50,10 +52,10 @@ defmodule MusicStudio.Scheduling.PreviewSeriesTest do
         interval_weeks: 1
       })
 
-    assert preview.term_end == ~D[2027-06-30]
-    assert preview.ended_on == ~D[2027-06-30]
-    assert preview.start_date == ~D[2026-09-08]
-    # Every Tuesday Sep 8 2026 -> Jun 29 2027 is open in this stub.
+    assert preview.term_end == term_end
+    assert preview.ended_on == term_end
+    assert preview.start_date == start
+    # Every Tuesday from an early-September start to the following June 30 is open in this stub.
     assert length(preview.bookable) >= 40
     assert preview.conflicted == []
   end
@@ -61,8 +63,11 @@ defmodule MusicStudio.Scheduling.PreviewSeriesTest do
   test "a custom end date (#16) shortens the series and is echoed as ended_on" do
     stub_all_days_open()
 
-    first =
-      Scheduling.Recurrence.occurrence_utc(~D[2026-09-08], ~T[16:00:00], "America/Vancouver")
+    start = early_series_start()
+    # 13 weeks after the start → 14 weekly Tuesdays inclusive, well within the term.
+    custom_end = Date.add(start, 13 * 7)
+
+    first = Scheduling.Recurrence.occurrence_utc(start, ~T[16:00:00], "America/Vancouver")
 
     {:ok, preview} =
       Scheduling.preview_series(%{
@@ -70,24 +75,26 @@ defmodule MusicStudio.Scheduling.PreviewSeriesTest do
         duration_minutes: 60,
         first_starts_at: first,
         interval_weeks: 1,
-        ends_on: ~D[2026-12-08]
+        ends_on: custom_end
       })
 
-    # Tuesdays Sep 8 2026 -> Dec 8 2026 inclusive = 14 lessons.
+    # start .. start+13w inclusive = 14 lessons.
     assert length(preview.bookable) == 14
-    assert preview.ended_on == ~D[2026-12-08]
+    assert preview.ended_on == custom_end
     # term_end still reports the school-year cap (Jun 30) for the UI bound.
-    assert preview.term_end == ~D[2027-06-30]
+    assert preview.term_end == Scheduling.Recurrence.term_end(start)
 
     last = preview.bookable |> List.last() |> DateTime.shift_zone!("America/Vancouver")
-    assert DateTime.to_date(last) == ~D[2026-12-08]
+    assert DateTime.to_date(last) == custom_end
   end
 
   test "a custom end past June 30 is clamped to the school-year term end (#16)" do
     stub_all_days_open()
 
-    first =
-      Scheduling.Recurrence.occurrence_utc(~D[2026-09-08], ~T[16:00:00], "America/Vancouver")
+    start = early_series_start()
+    term_end = Scheduling.Recurrence.term_end(start)
+
+    first = Scheduling.Recurrence.occurrence_utc(start, ~T[16:00:00], "America/Vancouver")
 
     {:ok, preview} =
       Scheduling.preview_series(%{
@@ -95,10 +102,11 @@ defmodule MusicStudio.Scheduling.PreviewSeriesTest do
         duration_minutes: 60,
         first_starts_at: first,
         interval_weeks: 1,
-        ends_on: ~D[2027-12-31]
+        # Well past the school-year end → should clamp to the term end.
+        ends_on: Date.add(term_end, 180)
       })
 
-    assert preview.ended_on == ~D[2027-06-30]
+    assert preview.ended_on == term_end
     assert length(preview.bookable) >= 40
   end
 

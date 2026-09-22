@@ -247,11 +247,13 @@ defmodule MusicStudioWeb.BookingLiveTest do
     {:ok, view, _} = live(conn, "/book")
     render_change(view, "choose", %{"instrument_slug" => "piano", "duration_minutes" => "60"})
 
-    next = Date.add(Date.beginning_of_month(target), 40) |> Date.beginning_of_month()
+    # The calendar opens on the current month; next/prev step one month at a time.
+    start_month = Date.beginning_of_month(Date.utc_today())
+    next = Date.add(start_month, 40) |> Date.beginning_of_month()
     html = render_click(view, "next_month", %{})
     assert html =~ Calendar.strftime(next, "%B %Y")
 
     html = render_click(view, "prev_month", %{})
-    assert html =~ Calendar.strftime(target, "%B %Y")
+    assert html =~ Calendar.strftime(start_month, "%B %Y")
   end
 end

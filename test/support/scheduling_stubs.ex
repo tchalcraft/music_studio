@@ -7,6 +7,31 @@ defmodule MusicStudio.SchedulingStubs do
   import ExUnit.Callbacks
 
   alias MusicStudio.Scheduling.GoogleAuth
+  alias MusicStudio.Scheduling.Recurrence
+
+  @doc """
+  A Tuesday early in the *upcoming* school year — always in the future (whatever the wall
+  clock says) with a full ~40-week runway to the following June 30, and always in PDT
+  (September), so tests stay deterministic without hard-coded calendar dates.
+  """
+  def early_series_start do
+    today = Date.utc_today()
+    year = if today.month >= 9, do: today.year + 1, else: today.year
+    first_tuesday(Date.new!(year, 9, 1))
+  end
+
+  @doc """
+  A Tuesday positioned so a weekly series yields exactly four lessons through the school-year
+  term end (the last four Tuesdays on/before June 30 of `early_series_start/0`'s year).
+  """
+  def late_series_start do
+    term_end = Recurrence.term_end(early_series_start())
+    last_tuesday = Date.add(term_end, -rem(Date.day_of_week(term_end) - 2 + 7, 7))
+    Date.add(last_tuesday, -21)
+  end
+
+  # First Tuesday on/after the given date (Monday = 1 … Tuesday = 2).
+  defp first_tuesday(date), do: Date.add(date, rem(2 - Date.day_of_week(date) + 7, 7))
 
   @doc """
   Put a throwaway service-account key + calendar ids (`availability`/`target` = "c") in

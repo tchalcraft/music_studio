@@ -354,6 +354,9 @@ defmodule MusicStudioWeb.HomeLive do
             © {Date.utc_today().year} Tristan Chalcraft Music · Music lessons in the Greater
             Vancouver area.
           </p>
+          <p style="margin-top:0.5rem">
+            Email <a href="mailto:tchalcraftmusic@gmail.com">tchalcraftmusic@gmail.com</a>
+          </p>
         </div>
       </footer>
     </div>

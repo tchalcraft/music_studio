@@ -25,13 +25,16 @@ defmodule MusicStudio.Scheduling.HeldSlotsTest do
 
     {:ok, student} = Teaching.create_student(%{first_name: "S", status: "prospective"})
 
+    # A future Tuesday the paused series covers (keeps the test off the wall clock).
+    tuesday = early_series_start()
+
     # A paused series: Tuesdays 16:00 PT, holding the slot for the whole term.
     {:ok, _enr} =
       %Enrollment{}
       |> Enrollment.changeset(%{
         status: :paused,
-        started_on: ~D[2026-09-08],
-        ended_on: ~D[2027-06-30],
+        started_on: tuesday,
+        ended_on: Scheduling.Recurrence.term_end(tuesday),
         recurrence_interval_weeks: 1,
         recurrence_weekday: 2,
         recurrence_time: ~T[16:00:00],
@@ -45,17 +48,19 @@ defmodule MusicStudio.Scheduling.HeldSlotsTest do
       })
       |> Repo.insert()
 
-    %{}
+    %{tuesday: tuesday}
   end
 
-  test "a paused series' recurring time is withheld from availability" do
-    # Availability calendar wide open on Tue Sep 15 2026, 15:00-18:00 PT.
+  test "a paused series' recurring time is withheld from availability", %{tuesday: tuesday} do
+    day = Date.to_iso8601(tuesday)
+
+    # Availability calendar wide open on the queried Tuesday, 15:00-18:00 PT.
     stub_google(fn conn ->
       Req.Test.json(conn, %{
         "items" => [
           %{
-            "start" => %{"dateTime" => "2026-09-15T15:00:00-07:00"},
-            "end" => %{"dateTime" => "2026-09-15T18:00:00-07:00"}
+            "start" => %{"dateTime" => day <> "T15:00:00-07:00"},
+            "end" => %{"dateTime" => day <> "T18:00:00-07:00"}
           }
         ]
       })
@@ -65,8 +70,8 @@ defmodule MusicStudio.Scheduling.HeldSlotsTest do
       Scheduling.list_available_slots(%{
         instrument_slug: "piano",
         duration_minutes: 30,
-        from: ~D[2026-09-15],
-        to: ~D[2026-09-15]
+        from: tuesday,
+        to: tuesday
       })
 
     starts =
