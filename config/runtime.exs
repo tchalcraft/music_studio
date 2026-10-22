@@ -50,6 +50,12 @@ if config_env() == :prod do
 
   maybe_ipv6 = if System.get_env("ECTO_IPV6") in ~w(true 1), do: [:inet6], else: []
 
+  # /cms basic auth. If either is unset the gate fails closed (nobody gets in) rather
+  # than crashing boot — see MusicStudioWeb.Plugs.AdminAuth.
+  config :music_studio, :admin_auth,
+    username: System.get_env("ADMIN_USER"),
+    password: System.get_env("ADMIN_PASSWORD")
+
   # Where new-inquiry notifications go in production. Set INQUIRY_TO_EMAIL (and
   # optionally INQUIRY_FROM_EMAIL) in the environment; never commit real addresses.
   if to_addr = System.get_env("INQUIRY_TO_EMAIL") do

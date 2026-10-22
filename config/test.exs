@@ -28,6 +28,8 @@ config :music_studio, MusicStudioWeb.Endpoint,
 # In test we don't send emails
 config :music_studio, MusicStudio.Mailer, adapter: Swoosh.Adapters.Test
 
+config :music_studio, :admin_auth, username: "admin", password: "test-admin-password"
+
 # Stripe: dummy credentials so the client is "configured", and route all HTTP through a
 # Req.Test stub instead of the network (tests set up the stub per case).
 config :music_studio, :stripe,

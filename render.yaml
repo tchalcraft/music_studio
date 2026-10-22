@@ -21,7 +21,7 @@ services:
     plan: free                 # hard free-tier guardrail
     region: oregon
     dockerfilePath: ./Dockerfile
-    healthCheckPath: /
+    healthCheckPath: /up         # DB-free probe (MusicStudioWeb.Plugs.Health)
     envVars:
       - key: PHX_SERVER
         value: "true"
@@ -44,4 +44,8 @@ services:
       - key: STRIPE_PUBLISHABLE_KEY
         sync: false
       - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: ADMIN_USER          # /cms basic auth; unset = /cms locked for everyone
+        sync: false
+      - key: ADMIN_PASSWORD
         sync: false
