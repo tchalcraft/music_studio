@@ -7,6 +7,9 @@ defmodule MusicStudio.Application do
 
   @impl true
   def start(_type, _args) do
+    # Keep booking manage tokens out of the logs (see MusicStudio.LogRedactor).
+    MusicStudio.LogRedactor.install()
+
     children = [
       MusicStudioWeb.Telemetry,
       MusicStudio.Repo,
