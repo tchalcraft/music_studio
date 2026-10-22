@@ -56,6 +56,9 @@ if config_env() == :prod do
     username: System.get_env("ADMIN_USER"),
     password: System.get_env("ADMIN_PASSWORD")
 
+  # Shared secret Cloudflare sends as `x-origin-auth`; unset = guard off (see OriginGuard).
+  config :music_studio, :origin_auth_secret, System.get_env("ORIGIN_AUTH_SECRET")
+
   # Where new-inquiry notifications go in production. Set INQUIRY_TO_EMAIL (and
   # optionally INQUIRY_FROM_EMAIL) in the environment; never commit real addresses.
   if to_addr = System.get_env("INQUIRY_TO_EMAIL") do
