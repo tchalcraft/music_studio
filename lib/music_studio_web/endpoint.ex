@@ -50,8 +50,14 @@ defmodule MusicStudioWeb.Endpoint do
     param_key: "request_logger",
     cookie_key: "request_logger"
 
+  # Render's health probe: answered before logging, session, or the router.
+  plug MusicStudioWeb.Plugs.Health
+
   plug Plug.RequestId
   plug Plug.Telemetry, event_prefix: [:phoenix, :endpoint]
+
+  # Scanner probes (/wp-admin, *.php, /.env, …) get a bare 404 before the Beacon catch-all.
+  plug MusicStudioWeb.Plugs.ScannerBlock
 
   plug Plug.Parsers,
     parsers: [:urlencoded, :multipart, :json],

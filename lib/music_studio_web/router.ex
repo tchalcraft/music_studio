@@ -20,7 +20,9 @@ defmodule MusicStudioWeb.Router do
     plug Beacon.Plug
   end
 
+  # /cms can edit code Beacon compiles at runtime — never serve it unauthenticated.
   pipeline :beacon_admin do
+    plug MusicStudioWeb.Plugs.AdminAuth
     plug Beacon.LiveAdmin.Plug
   end
 
@@ -68,7 +70,7 @@ defmodule MusicStudioWeb.Router do
   scope "/" do
     pipe_through [:browser, :beacon_admin]
 
-    beacon_live_admin "/cms"
+    beacon_live_admin "/cms", on_mount: [{MusicStudioWeb.Plugs.AdminAuth, :require_admin}]
   end
 
   # Beacon public site — CMS-managed pages, backed by MusicStudio.Repo (Neon in dev).

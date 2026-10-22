@@ -75,6 +75,9 @@ config :music_studio, MusicStudioWeb.Endpoint,
 # Enable dev routes for dashboard and mailbox
 config :music_studio, dev_routes: true
 
+# Local-only /cms basic-auth credentials (prod reads ADMIN_USER / ADMIN_PASSWORD).
+config :music_studio, :admin_auth, username: "admin", password: "admin"
+
 # Do not include metadata nor timestamps in development logs
 config :logger, :default_formatter, format: "[$level] $message\n"
 
