@@ -56,6 +56,9 @@ defmodule MusicStudioWeb.Endpoint do
   plug Plug.RequestId
   plug Plug.Telemetry, event_prefix: [:phoenix, :endpoint]
 
+  # Direct hits on the onrender host (bypassing Cloudflare) get a 403 once ORIGIN_AUTH_SECRET is set.
+  plug MusicStudioWeb.Plugs.OriginGuard
+
   # Scanner probes (/wp-admin, *.php, /.env, …) get a bare 404 before the Beacon catch-all.
   plug MusicStudioWeb.Plugs.ScannerBlock
 
