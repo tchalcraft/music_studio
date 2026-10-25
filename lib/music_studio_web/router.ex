@@ -70,7 +70,11 @@ defmodule MusicStudioWeb.Router do
   scope "/" do
     pipe_through [:browser, :beacon_admin]
 
-    beacon_live_admin "/cms", on_mount: [{MusicStudioWeb.Plugs.AdminAuth, :require_admin}]
+    beacon_live_admin "/cms",
+      on_mount: [
+        MusicStudioWeb.Plugs.OriginGuard,
+        {MusicStudioWeb.Plugs.AdminAuth, :require_admin}
+      ]
   end
 
   # Beacon public site — CMS-managed pages, backed by MusicStudio.Repo (Neon in dev).
@@ -78,6 +82,6 @@ defmodule MusicStudioWeb.Router do
   scope "/", MusicStudioWeb do
     pipe_through [:browser, :beacon]
 
-    beacon_site "/", site: :music_studio
+    beacon_site "/", site: :music_studio, on_mount: [MusicStudioWeb.Plugs.OriginGuard]
   end
 end

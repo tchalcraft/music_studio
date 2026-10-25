@@ -17,9 +17,11 @@ defmodule MusicStudioWeb.Endpoint do
     same_site: "Lax"
   ]
 
+  # :x_headers carries Cloudflare's x-origin-auth into LiveView mounts (OriginGuard.on_mount/4),
+  # since socket connections bypass the plug pipeline below.
   socket "/live", Phoenix.LiveView.Socket,
-    websocket: [connect_info: [session: @session_options]],
-    longpoll: [connect_info: [session: @session_options]]
+    websocket: [connect_info: [:x_headers, session: @session_options]],
+    longpoll: [connect_info: [:x_headers, session: @session_options]]
 
   # Serve at "/" the static files from "priv/static" directory.
   #
