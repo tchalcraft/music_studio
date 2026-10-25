@@ -11,7 +11,14 @@ if database_url = System.get_env("DATABASE_URL") do
     # Drop any libpq query params (e.g. ?sslmode=require&channel_binding=require);
     # SSL is configured explicitly below and channel binding is negotiated by Postgrex.
     url: database_url |> String.split("?") |> hd(),
-    ssl: [verify: :verify_none],
+    # Verify Neon's certificate (publicly trusted, wildcard) against the OS trust store
+    # instead of accepting any cert — closes the MITM gap on the DB connection.
+    ssl: [
+      verify: :verify_peer,
+      cacerts: :public_key.cacerts_get(),
+      server_name_indication: database_url |> URI.parse() |> Map.fetch!(:host) |> String.to_charlist(),
+      customize_hostname_check: [match_fun: :public_key.pkix_verify_hostname_match_fun(:https)]
+    ],
     # Neon's pooled endpoint runs PgBouncer in transaction mode, which is incompatible
     # with named prepared statements — use unnamed ones to avoid "prepared statement
     # already exists" errors.
