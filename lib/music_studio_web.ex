@@ -52,6 +52,9 @@ defmodule MusicStudioWeb do
     quote do
       use Phoenix.LiveView
 
+      # Connected mounts must have come through Cloudflare (see OriginGuard).
+      on_mount MusicStudioWeb.Plugs.OriginGuard
+
       unquote(html_helpers())
     end
   end

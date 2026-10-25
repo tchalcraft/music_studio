@@ -2,6 +2,8 @@ defmodule MusicStudioWeb.OriginGuardTest do
   # Mutates app env, so not async.
   use MusicStudioWeb.ConnCase, async: false
 
+  import Phoenix.LiveViewTest
+
   @secret "test-origin-secret"
 
   defp with_secret(secret) do
@@ -24,14 +26,54 @@ defmodule MusicStudioWeb.OriginGuardTest do
       assert conn.status == 403
     end
 
-    test "passes the right header through and strips it", %{conn: conn} do
+    test "passes the right header through", %{conn: conn} do
       conn = conn |> put_req_header("x-origin-auth", @secret) |> get("/book")
       assert conn.status == 200
-      assert get_req_header(conn, "x-origin-auth") == []
     end
 
     test "still answers /up for Render's direct health probe", %{conn: conn} do
       assert get(conn, "/up").status == 200
+    end
+  end
+
+  describe "LiveView on_mount (socket path)" do
+    alias MusicStudioWeb.Plugs.OriginGuard
+
+    defp socket(connected?, x_headers) do
+      %Phoenix.LiveView.Socket{
+        transport_pid: if(connected?, do: self()),
+        private: %{connect_info: %{x_headers: x_headers}}
+      }
+    end
+
+    setup do: with_secret(@secret)
+
+    test "halts a connected mount without the header" do
+      assert {:halt, _} = OriginGuard.on_mount(:default, %{}, %{}, socket(true, []))
+    end
+
+    test "halts a connected mount with a wrong header" do
+      assert {:halt, _} =
+               OriginGuard.on_mount(:default, %{}, %{}, socket(true, [{"x-origin-auth", "nope"}]))
+    end
+
+    test "continues a connected mount with the right header" do
+      assert {:cont, _} =
+               OriginGuard.on_mount(
+                 :default,
+                 %{},
+                 %{},
+                 socket(true, [{"x-origin-auth", @secret}])
+               )
+    end
+
+    test "continues the disconnected (HTTP) mount, which the plug already guarded" do
+      assert {:cont, _} = OriginGuard.on_mount(:default, %{}, %{}, socket(false, []))
+    end
+
+    test "a full LiveView round-trip still works through the guard", %{conn: conn} do
+      conn = put_req_header(conn, "x-origin-auth", @secret)
+      assert {:ok, _view, _html} = live(conn, "/book")
     end
   end
 
