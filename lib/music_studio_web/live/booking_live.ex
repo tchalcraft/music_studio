@@ -289,6 +289,8 @@ defmodule MusicStudioWeb.BookingLive do
   def render(assigns) do
     ~H"""
     <div class="mx-auto max-w-2xl p-6">
+      <%!-- This page doesn't use Layouts.app, so render flash messages here. --%>
+      <Layouts.flash_group flash={@flash} />
       <h1 class="text-2xl font-semibold">Book a lesson</h1>
 
       <.step_bar current={@step} />

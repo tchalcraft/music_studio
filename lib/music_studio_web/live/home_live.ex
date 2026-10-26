@@ -72,6 +72,8 @@ defmodule MusicStudioWeb.HomeLive do
 
     ~H"""
     <div class="ms-root">
+      <%!-- This page doesn't use Layouts.app, so render flash messages here. --%>
+      <Layouts.flash_group flash={@flash} />
       <header class="ms-nav">
         <div class="ms-container ms-nav__inner">
           <a href="#top" class="ms-nav__brand">Tristan Chalcraft Music</a>
