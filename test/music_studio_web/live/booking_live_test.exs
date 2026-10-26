@@ -96,6 +96,37 @@ defmodule MusicStudioWeb.BookingLiveTest do
     assert has_element?(view, ~s([aria-current="step"]), "Confirmed")
   end
 
+  test "a rejected Turnstile token blocks the booking", %{conn: conn} do
+    original = Application.get_env(:music_studio, :turnstile)
+
+    Application.put_env(:music_studio, :turnstile,
+      site_key: "site-key",
+      secret_key: "secret-key",
+      req_options: [plug: {Req.Test, MusicStudio.Turnstile}]
+    )
+
+    on_exit(fn -> Application.put_env(:music_studio, :turnstile, original) end)
+
+    stub_far_future()
+    {:ok, view, _} = live(conn, "/book")
+    render_change(view, "choose", %{"instrument_slug" => "piano", "duration_minutes" => "60"})
+    html = render_click(view, "pick_slot", %{"start" => @first_slot_iso})
+    assert html =~ ~s(id="booking-turnstile")
+
+    Req.Test.stub(MusicStudio.Turnstile, &Req.Test.json(&1, %{"success" => false}))
+    Req.Test.allow(MusicStudio.Turnstile, self(), view.pid)
+
+    html =
+      render_submit(view, "book", %{
+        "booking" => %{"name" => "Sam Lee", "email" => "sam@example.com", "phone" => ""},
+        "cf-turnstile-response" => "bad-token"
+      })
+
+    assert html =~ "quick security check"
+    refute html =~ "booked!"
+    assert has_element?(view, ~s([aria-current="step"]), "Your details")
+  end
+
   test "Back from details returns to Schedule and keeps entered details", %{conn: conn} do
     stub_far_future()
     {:ok, view, _} = live(conn, "/book")

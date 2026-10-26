@@ -16,7 +16,8 @@ if database_url = System.get_env("DATABASE_URL") do
     ssl: [
       verify: :verify_peer,
       cacerts: :public_key.cacerts_get(),
-      server_name_indication: database_url |> URI.parse() |> Map.fetch!(:host) |> String.to_charlist(),
+      server_name_indication:
+        database_url |> URI.parse() |> Map.fetch!(:host) |> String.to_charlist(),
       customize_hostname_check: [match_fun: :public_key.pkix_verify_hostname_match_fun(:https)]
     ],
     # Neon's pooled endpoint runs PgBouncer in transaction mode, which is incompatible
