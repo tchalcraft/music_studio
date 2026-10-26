@@ -59,6 +59,11 @@ if config_env() == :prod do
   # Shared secret Cloudflare sends as `x-origin-auth`; unset = guard off (see OriginGuard).
   config :music_studio, :origin_auth_secret, System.get_env("ORIGIN_AUTH_SECRET")
 
+  # Cloudflare Turnstile on the public forms; unset = check off (see MusicStudio.Turnstile).
+  config :music_studio, :turnstile,
+    site_key: System.get_env("TURNSTILE_SITE_KEY"),
+    secret_key: System.get_env("TURNSTILE_SECRET_KEY")
+
   # Where new-inquiry notifications go in production. Set INQUIRY_TO_EMAIL (and
   # optionally INQUIRY_FROM_EMAIL) in the environment; never commit real addresses.
   if to_addr = System.get_env("INQUIRY_TO_EMAIL") do
@@ -118,7 +123,8 @@ if config_env() == :prod do
     ssl: [
       verify: :verify_peer,
       cacerts: :public_key.cacerts_get(),
-      server_name_indication: database_url |> URI.parse() |> Map.fetch!(:host) |> String.to_charlist(),
+      server_name_indication:
+        database_url |> URI.parse() |> Map.fetch!(:host) |> String.to_charlist(),
       customize_hostname_check: [match_fun: :public_key.pkix_verify_hostname_match_fun(:https)]
     ],
     # Neon's pooled endpoint runs PgBouncer in transaction mode, which is incompatible

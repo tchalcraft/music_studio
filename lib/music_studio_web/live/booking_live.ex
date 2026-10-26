@@ -7,6 +7,11 @@ defmodule MusicStudioWeb.BookingLive do
 
   alias MusicStudio.Catalog
   alias MusicStudio.Scheduling
+  alias MusicStudioWeb.FormGuard
+
+  import MusicStudioWeb.FormGuard, only: [turnstile: 1]
+
+  on_mount FormGuard
 
   # Ordered steps as {key, label}; the index drives the progress bar and Back targets.
   @steps [lesson: "Lesson", schedule: "Schedule", details: "Your details", done: "Confirmed"]
@@ -171,15 +176,22 @@ defmodule MusicStudioWeb.BookingLive do
     {:noreply, assign(socket, :form, to_form(params, as: :booking))}
   end
 
-  def handle_event("book", %{"booking" => params}, socket) do
-    case socket.assigns.cadence do
-      "once" -> book_single(socket, params)
-      _ -> book_series(socket, params)
+  def handle_event("book", %{"booking" => booking_params} = params, socket) do
+    case FormGuard.check(socket, :booking, params) do
+      :ok -> book(socket, booking_params)
+      {:error, message, socket} -> {:noreply, put_flash(socket, :error, message)}
     end
   end
 
   def handle_event("back", %{"to" => to}, socket) do
     {:noreply, assign(socket, :step, String.to_existing_atom(to))}
+  end
+
+  defp book(socket, params) do
+    case socket.assigns.cadence do
+      "once" -> book_single(socket, params)
+      _ -> book_series(socket, params)
+    end
   end
 
   defp book_single(socket, params) do
@@ -635,6 +647,7 @@ defmodule MusicStudioWeb.BookingLive do
           <.input field={@form[:name]} label="Your name" required />
           <.input field={@form[:email]} type="email" label="Email" required />
           <.input field={@form[:phone]} label="Phone (optional)" />
+          <.turnstile id="booking-turnstile" />
           <button
             type="submit"
             class="cursor-pointer rounded-lg bg-indigo-600 px-4 py-2.5 font-medium text-white shadow-sm transition-colors hover:bg-indigo-700 active:scale-[.98] dark:bg-indigo-500 dark:hover:bg-indigo-400"

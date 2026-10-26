@@ -51,3 +51,7 @@ services:
         sync: false
       - key: ORIGIN_AUTH_SECRET  # Cloudflare x-origin-auth secret; unset = origin guard off
         sync: false
+      - key: TURNSTILE_SITE_KEY  # Cloudflare Turnstile widget; both unset = bot check off
+        sync: false
+      - key: TURNSTILE_SECRET_KEY
+        sync: false

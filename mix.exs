@@ -76,6 +76,8 @@ defmodule MusicStudio.MixProject do
        depth: 1},
       {:swoosh, "~> 1.16"},
       {:req, "~> 0.5"},
+      # Per-IP rate limits on the public inquiry/booking forms (MusicStudio.RateLimit).
+      {:hammer, "~> 7.1"},
       {:telemetry_metrics, "~> 1.0"},
       {:telemetry_poller, "~> 1.0"},
       # Beacon requires gettext ~> 0.26 (which already has the Gettext.Backend API

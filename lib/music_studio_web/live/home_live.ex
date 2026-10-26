@@ -12,6 +12,11 @@ defmodule MusicStudioWeb.HomeLive do
   alias MusicStudio.Leads
   alias MusicStudio.Leads.Lead
   alias MusicStudio.Leads.Notifier
+  alias MusicStudioWeb.FormGuard
+
+  import MusicStudioWeb.FormGuard, only: [turnstile: 1]
+
+  on_mount FormGuard
 
   @instrument_options [{"Voice", "voice"}, {"Piano", "piano"}, {"Guitar", "guitar"}]
 
@@ -34,7 +39,14 @@ defmodule MusicStudioWeb.HomeLive do
     {:noreply, socket |> assign(:sent, false) |> assign_form(changeset)}
   end
 
-  def handle_event("submit", %{"lead" => params}, socket) do
+  def handle_event("submit", %{"lead" => lead_params} = params, socket) do
+    case FormGuard.check(socket, :inquiry, params) do
+      :ok -> create_lead(socket, lead_params)
+      {:error, message, socket} -> {:noreply, put_flash(socket, :error, message)}
+    end
+  end
+
+  defp create_lead(socket, params) do
     case Leads.create_lead(params) do
       {:ok, lead} ->
         # Best-effort notification. The lead is already saved, so always confirm to the
@@ -44,7 +56,8 @@ defmodule MusicStudioWeb.HomeLive do
         {:noreply,
          socket
          |> assign(:sent, true)
-         |> assign_form(Leads.change_lead(%Lead{}))}
+         |> assign_form(Leads.change_lead(%Lead{}))
+         |> FormGuard.reset_widget()}
 
       {:error, changeset} ->
         {:noreply, assign_form(socket, changeset)}
@@ -341,6 +354,8 @@ defmodule MusicStudioWeb.HomeLive do
                   {error_message(err)}
                 </span>
               </div>
+
+              <.turnstile id="inquiry-turnstile" />
 
               <button type="submit" class="ms-btn ms-btn--primary ms-btn--block">
                 Send inquiry

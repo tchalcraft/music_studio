@@ -30,6 +30,9 @@ config :music_studio, MusicStudio.Mailer, adapter: Swoosh.Adapters.Test
 
 config :music_studio, :admin_auth, username: "admin", password: "test-admin-password"
 
+# Form rate limits off so ordinary tests can submit freely; FormGuard tests turn them on.
+config :music_studio, MusicStudio.RateLimit, enabled: false
+
 # Stripe: dummy credentials so the client is "configured", and route all HTTP through a
 # Req.Test stub instead of the network (tests set up the stub per case).
 config :music_studio, :stripe,
