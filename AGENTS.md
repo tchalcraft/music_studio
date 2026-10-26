@@ -77,6 +77,12 @@ holds only what is always true.
 - Describe *what changed and why*. Subject in the imperative mood, ≤72 characters.
 - The body explains the *why*, not a restatement of the diff.
 
+## Changelog
+
+- User-visible, security, or ops-relevant changes get a line under **Unreleased** in
+  `CHANGELOG.md`, in the same PR. On each production deploy, rename *Unreleased* to
+  `## YYYY-MM-DD — <commit>` and open a fresh one. Pure refactors and test-only changes can skip it.
+
 ## AI attribution
 
 - End agent-written commit bodies with a `Co-Authored-By:` trailer naming the model,
